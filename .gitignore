@@ -1,0 +1,14 @@
+# Private environment settings
+.env
+.env.*
+!.env.example
+
+# Installed Node.js dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Generated builds
+dist/
+build/
