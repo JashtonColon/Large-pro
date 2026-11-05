@@ -4,26 +4,46 @@ import {
     isValidLoginInput,
 } from "../utils/authValidation.js";
 
+import {
+    registerUser,
+    loginUser,
+    AuthError,
+} from "../services/authService.js";
+
+import { generateToken } from "../utils/generateToken.js";
+
+const handleAuthError = (error: unknown, res: Response): void => {
+    if (error instanceof AuthError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+    }
+
+    console.error("Authentication error:", error);
+
+    res.status(500).json({ message: "Internal server error" });
+};
+
 // POST /api/auth/register
 export const register = async (
 req: Request,
 res: Response
 ): Promise<void> => {
     try {
-        if (!isValidRegisterInput(req.body)) {
+        const input: unknown = req.body;
+
+        if (!isValidRegisterInput(input)) {
             res.status(400).json({ message: "Invalid registration input" });
             return;
         }
         
-        const { firstName, lastName, email, password } = req.body;
+        const user = await registerUser(input);
 
-        res.status(200).json({ 
-            message: "Registration request received", 
-            user: { firstName, lastName, email } });
+        res.status(201).json({
+            message: "User registered successfully",
+            user,
+        });
     } catch (error) {
-        console.error("Registration error:", error);
-
-        res.status(500).json({ message: "Internal server error" });
+        handleAuthError(error, res);
     }
 };
 
@@ -33,16 +53,18 @@ req: Request,
 res: Response
 ): Promise<void> => {
     try {
-        if (!isValidLoginInput(req.body)) {
+        const input: unknown = req.body;
+        
+        if (!isValidLoginInput(input)) {
             res.status(400).json({ message: "Invalid login input" });
             return;
         }
 
-        res.status(200).json({ message: "Login request received" });
+        const user = await loginUser(input);
+        const token = generateToken(user.id);
 
+        res.status(200).json({ message: "Login successful", token, user });
     } catch (error) {
-        console.error("Login error:", error);
-
-        res.status(500).json({ message: "Internal server error" });
+        handleAuthError(error, res);
     }
 };
