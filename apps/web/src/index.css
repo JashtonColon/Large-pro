@@ -1,1 +1,93 @@
 @import "tailwindcss";
+
+:root {
+  --ucf-black: #000000;
+  --ucf-gold: #ffc904;
+  --ucf-dark-gold: #d9a900;
+  --page-background: #f5f5f5;
+  --card-background: #ffffff;
+  --main-text: #222222;
+}
+
+body {
+  margin: 0;
+  background-color: var(--page-background);
+  color: var(--main-text);
+  font-family: Arial, Helvetica, sans-serif;
+}@import "tailwindcss";
+
+/* Overall page background */
+.page-container {
+  min-height: 100vh;
+  background-color: var(--page-background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* White card containing each form */
+.auth-card {
+  width: 100%;
+  max-width: 448px;
+  background-color: var(--card-background);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  border-top: 5px solid var(--ucf-gold);
+}
+
+/* Study Buddy heading */
+.brand-title {
+  color: var(--ucf-black);
+  font-size: 36px;
+  font-weight: bold;
+}
+
+/* Page headings */
+.page-title {
+  color: var(--ucf-black);
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+/* Form input fields */
+.form-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 12px;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: var(--ucf-gold);
+  box-shadow: 0 0 0 2px var(--ucf-gold);
+}
+
+/* Main buttons */
+.primary-button {
+  width: 100%;
+  background-color: var(--ucf-black);
+  color: var(--ucf-gold);
+  font-weight: bold;
+  padding: 12px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.primary-button:hover {
+  background-color: var(--ucf-gold);
+  color: var(--ucf-black);
+}
+
+/* Navigation links */
+.text-link {
+  color: #a17c00;
+  font-weight: 600;
+}
+
+.text-link:hover {
+  text-decoration: underline;
+}
