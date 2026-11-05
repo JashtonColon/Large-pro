@@ -1,6 +1,6 @@
-
-import { sendVerificationEmail } from "./services/emailService.js";
-import { generateVerificationCode } from "./utils/generateVerificationCode.js";
+//To run, use command: npx tsx src/testEmailService.ts
+import { sendVerificationEmail } from "../services/emailService.js";
+import { generateVerificationCode } from "../utils/generateVerificationCode.js";
 import "dotenv/config";
 
 async function test() {
