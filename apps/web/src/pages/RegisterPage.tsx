@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { register, ApiError } from '../lib/authApi';
 
 export default function RegisterPage() {
   const [firstName, setFirstName] = useState('');
@@ -7,10 +8,11 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const inputClass = 'w-full rounded-md border border-slate-300 px-3 py-2';
 
-  // Returns an error message, or '' if everything is valid
   function validate(): string {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
       return 'Please fill in all fields.';
@@ -24,15 +26,31 @@ export default function RegisterPage() {
     return '';
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();               // stop the page from reloading
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSuccess('');
 
     const message = validate();
     setError(message);
-    if (message) return;              // invalid: stop here, error is shown
+    if (message) return;
 
-    // Valid! In the next step we'll send this to the (mock) API.
-    console.log('Ready to register:', { firstName, lastName, email });
+    setLoading(true);
+    try {
+      const result = await register({ firstName, lastName, email, password });
+      setSuccess(result.message);
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setPassword('');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);                    // e.g. "Email already registered"
+      } else {
+        setError('Could not reach the server. Please try again.');
+      }
+    } finally {
+      setLoading(false);                          // runs whether it worked or failed
+    }
   }
 
   return (
@@ -56,10 +74,15 @@ export default function RegisterPage() {
           {error && (
             <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
           )}
+          {success && (
+            <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+              {success} <Link to="/login" className="underline">Go to login</Link>
+            </p>
+          )}
 
-          <button type="submit"
-            className="w-full rounded-md bg-blue-600 py-2 font-semibold text-white">
-            Create account
+          <button type="submit" disabled={loading}
+            className="w-full rounded-md bg-blue-600 py-2 font-semibold text-white disabled:opacity-60">
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 
