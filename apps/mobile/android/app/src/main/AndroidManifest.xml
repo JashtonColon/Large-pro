@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Needed so the release app can reach the backend API. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="study_buddy"
+        android:label="UCF Study Buddy"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
