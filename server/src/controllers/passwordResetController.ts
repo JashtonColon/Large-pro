@@ -1,4 +1,5 @@
 import type {Request, Response} from "express";
+import { requestPasswordReset } from "../services/passwordResetService.js";
 
 //POST api/auth/forgor passowrd
 export async function forgotPassword(
@@ -14,15 +15,17 @@ export async function forgotPassword(
         return;
     }
 
-  // TODO: Connect to User and AuthToken models.
-  // Look up the user, generate and store a reset token,
-  // then send the password reset email.
-  // Never reveal whether the account exists.
-
-  res.status(200).json({
-    message: "If an account exists with that email, a password reset link will be sent"
-  });
-
+    try{
+        await requestPasswordReset(email);
+        res.status(200).json({
+            message: "If an account exists with that email, a password reset link will be sent"
+            });
+    } catch (error) {
+        console.error("Password reset request failed:", error);
+        res.status(500).json({
+            message: "Unable to process your request at this time."
+        })
+    }  
 }
 
 // POST api/auth/reset-pass
