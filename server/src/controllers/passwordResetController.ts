@@ -1,5 +1,6 @@
 import type {Request, Response} from "express";
 import { requestPasswordReset } from "../services/passwordResetService.js";
+import { completePasswordReset } from "../services/passwordResetService.js";
 
 //POST api/auth/forgor passowrd
 export async function forgotPassword(
@@ -52,12 +53,26 @@ export async function resetPassword(
         return;
     }
 
-    // TODO: Connect to AuthToken and User models.
-    // Verify token hash and expiration, update passwordHash
-    // using the team's approved password hasher, and consume
-    // the token atomically to prevent reuse.
+    try{
+        const success = await completePasswordReset(
+            token,
+            newPassword
+        );
 
-    res.status(501).json({
-        message: "Password reset is not yet implemented."
-    });
+        if(!success){
+            res.status(400).json({
+                message: "Invalid or expired reset token",
+            });
+            return;
+        }
+
+        res.status(200).json({
+            message: "Password reset successfully",
+        });
+    } catch (error){
+        console.error("Password reset failed:",error);
+        res.status(500).json({
+            message: "Unable to reset password at this time.",
+        });
+    }
 }

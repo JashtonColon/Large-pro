@@ -3,6 +3,8 @@ import User from "../models/User.js";
 import AuthToken from "../models/AuthToken.js";
 import { generateResetToken } from "../utils/generateResetToken.js";
 import { sendPasswordResetEmail } from "./emailService.js";
+import bcrypt from "bcryptjs";
+import { createHash } from "node:crypto";
 
 const RESET_TOKEN_EXPIRATION_MINUTES = 30;
 
@@ -54,4 +56,52 @@ export async function requestPasswordReset(
 
   // Email the reset link to the student.
   await sendPasswordResetEmail(normalizedEmail, resetLink);
+}
+
+export async function completePasswordReset(
+    token: string,
+    newPassword: string
+): Promise<boolean>{
+    //hash token received from link
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+
+    //find an unexpired reset token
+    const resetToken = await AuthToken.findOne({
+        tokenHash,
+        type: "password_reset",
+        expiresAt: {$gt: new Date()},
+    });
+
+    if(!resetToken) return false;
+
+    //Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    //consume the token
+    const consumedToken = await AuthToken.findOneAndDelete({
+        _id: resetToken._id,
+        tokenHash,
+        type: "password_reset",
+        expiresAt: {$gt: new Date()},
+    });
+
+    if(!consumedToken) return false;
+
+    //update password in db
+    const updatedUser = await User.findByIdAndUpdate(
+        consumedToken.userId,
+        {$set: {password: hashedPassword}},
+        {new: true}
+    );
+
+    if(!updatedUser){
+        throw new Error("User not found during password reset");
+    }
+
+    await AuthToken.deleteMany({
+        userId: consumedToken.userId,
+        type: "password_reset",
+    });
+
+    return true;
 }
