@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+// Shape of the User
 export interface IUser extends Document {
     firstName: string;
     lastName: string;
@@ -8,6 +9,7 @@ export interface IUser extends Document {
     emailVerified: boolean;
 }
 
+// User Schema
 const UserSchema: Schema = new Schema<IUser>(
     {
         firstName: {
@@ -23,14 +25,14 @@ const UserSchema: Schema = new Schema<IUser>(
         email: {
             type: String,
             required: true,
-            unique: true,
+            unique: true, // Every User have a unique email
             lowercase: true,
             trim: true,
         },
         password: {
             type: String,
             required: true,
-            select: false,
+            select: false, // Exclude from query
         },
         emailVerified: {
             type: Boolean,
@@ -42,4 +44,5 @@ const UserSchema: Schema = new Schema<IUser>(
     }
 );
 
+// Create User model (collection) from the schema
 export default mongoose.model<IUser>('User', UserSchema);

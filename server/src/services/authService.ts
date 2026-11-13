@@ -1,17 +1,9 @@
 import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
+import User from "../models/User.js";
 import type {
   RegisterInput,
   LoginInput,
 } from "../utils/authValidation.js";
-
-interface StoredUser {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  passwordHash: string;
-}
 
 interface PublicUser {
   id: string;
@@ -19,9 +11,6 @@ interface PublicUser {
   lastName: string;
   email: string;
 }
-
-// Temporary user storage until MongoDB is available.
-const users = new Map<string, StoredUser>();
 
 export class AuthError extends Error {
   constructor(
@@ -33,9 +22,14 @@ export class AuthError extends Error {
   }
 }
 
-function toPublicUser(user: StoredUser): PublicUser {
+function toPublicUser(user: {
+  _id: { toString(): string };
+  firstName: string;
+  lastName: string;
+  email: string;
+}): PublicUser {
   return {
-    id: user.id,
+    id: user._id.toString(),
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
@@ -48,21 +42,18 @@ export async function registerUser(
 ): Promise<PublicUser> {
   const email = input.email.trim().toLowerCase();
 
-  if (users.has(email)) {
+  if (await User.exists({ email })) {
     throw new AuthError(409, "Email already registered");
   }
 
   const passwordHash = await bcrypt.hash(input.password, 12);
 
-  const user: StoredUser = {
-    id: randomUUID(),
+  const user = await User.create({
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     email,
-    passwordHash,
-  };
-
-  users.set(email, user);
+    password: passwordHash,
+  });
 
   return toPublicUser(user);
 }
@@ -72,7 +63,7 @@ export async function loginUser(
   input: LoginInput
 ): Promise<PublicUser> {
   const email = input.email.trim().toLowerCase();
-  const user = users.get(email);
+  const user = await User.findOne({ email }).select("+password");
 
   if (!user) {
     throw new AuthError(401, "Invalid email or password");
@@ -80,7 +71,7 @@ export async function loginUser(
 
   const isPasswordValid = await bcrypt.compare(
     input.password,
-    user.passwordHash
+    user.password
   );
 
   if (!isPasswordValid) {
