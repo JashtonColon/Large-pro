@@ -20,6 +20,7 @@ async function inspectUsers() {
     console.log("Total users:", userCount);
 
     // Retrieve only email addresses, not passwords.
+    
     const users = await User.find({})
       .select("email -_id")
       .lean();
