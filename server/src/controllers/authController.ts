@@ -7,7 +7,7 @@ import {
 import {
     registerUser,
     loginUser,
-    AuthError,
+    AuthError, // Class
 } from "../services/authService.js";
 
 import { generateToken } from "../utils/generateToken.js";
