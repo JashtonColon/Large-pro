@@ -4,6 +4,7 @@ import type {
   RegisterInput,
   LoginInput,
 } from "../utils/authValidation.js";
+import { requestEmailVerification } from "./emailVerificationService.js";
 
 interface PublicUser {
   id: string;
@@ -55,6 +56,8 @@ export async function registerUser(
     password: passwordHash,
   });
 
+  await requestEmailVerification(email);
+
   return toPublicUser(user);
 }
 
@@ -76,6 +79,10 @@ export async function loginUser(
 
   if (!isPasswordValid) {
     throw new AuthError(401, "Invalid email or password");
+  }
+
+  if(!user.emailVerified){
+    throw new AuthError(403, "Please verify your email before logging in.");
   }
 
   return toPublicUser(user);

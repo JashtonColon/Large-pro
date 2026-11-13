@@ -6,6 +6,7 @@ export interface IUser extends Document {
     lastName: string;
     email: string;
     password: string;
+    emailVerified: boolean;
 }
 
 // User Schema
@@ -32,6 +33,10 @@ const UserSchema: Schema = new Schema<IUser>(
             type: String,
             required: true,
             select: false, // Exclude from query
+        },
+        emailVerified: {
+            type: Boolean,
+            default: false,
         },
     },
     {
