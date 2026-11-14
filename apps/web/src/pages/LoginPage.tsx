@@ -1,42 +1,76 @@
-import LoginForm from "../components/LoginForm";
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
-type LoginPageProps = {
-  onCreateAccount: () => void;
-  onForgotPassword: () => void;
-};
+export default function LoginPage() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
 
-export default function LoginPage({
-  onCreateAccount,
-  onForgotPassword,
-}: LoginPageProps) {
+  function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("Login submitted! Backend authentication is coming soon.");
+  }
+
   return (
-    <main className="page-container">
-      <div className="auth-card">
+    <main className="login-page">
+      <section className="login-card">
+        <h1 className="login-brand">Knight Study Buddy</h1>
+        <p className="login-subtitle">Your next study quest starts here.</p>
 
-        <div className="text-center mb-8">
-          <h1 className="brand-title">
-            UCF Study Buddy
-          </h1>
+        <h2 className="login-heading">Welcome, Knight!</h2>
 
-          <p className="text-slate-500 mt-2">
-            Find your perfect study partner.
-          </p>
-        </div>
+        <form onSubmit={handleLogin}>
+          <label className="login-field" htmlFor="login-email">
+            UCF Email
+            <input
+              id="login-email"
+              className="login-input"
+              type="email"
+              placeholder="yourname@ucf.edu"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </label>
 
-        <LoginForm onForgotPassword={onForgotPassword} />
+          <label className="login-field" htmlFor="login-password">
+            Password
+            <input
+              id="login-password"
+              className="login-input"
+              type="password"
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </label>
 
-        <div className="text-center mt-8 text-sm text-slate-600">
-          Don't have an account?{" "}
           <button
+            className="login-forgot"
             type="button"
-            onClick={onCreateAccount}
-            className="text-link"
+            onClick={() => navigate("/forgot-password")}
           >
+            Forgot Password?
+          </button>
+
+          <button className="login-submit" type="submit">
+            Log In
+          </button>
+
+          {message && <p className="login-message" role="status">{message}</p>}
+        </form>
+
+        <p className="login-register">
+          Don't have an account?{" "}
+          <button type="button" onClick={() => navigate("/register")}>
             Create Account
           </button>
-        </div>
-
-      </div>
+        </p>
+      </section>
     </main>
   );
 }

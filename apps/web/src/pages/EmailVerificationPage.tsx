@@ -1,51 +1,91 @@
-import EmailVerificationForm from "../components/EmailVerificationForm";
+import { useState, type FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-type EmailVerificationPageProps = {
-  email: string;
-  onBackToLogin: () => void;
-};
+export default function EmailVerificationPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-export default function EmailVerificationPage({
-  email,
-  onBackToLogin,
-}: EmailVerificationPageProps) {
+  const email = location.state?.email || "";
+
+  const [code, setCode] = useState("");
+  const [message, setMessage] = useState("");
+
+  function handleVerification(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setMessage("Verification submitted! Backend verification coming soon.");
+  }
+
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-      <div className="auth-card">
+    <main className="login-page">
+      <div className="login-card">
 
-        {/* Heading */}
-        <div className="text-center mb-8">
-          <h1 className="brand-title">
-            UCF Study Buddy
-          </h1>
+        {/* Branding */}
+        <h1 className="login-brand">
+          Knight Study Buddy
+        </h1>
 
-          <p className="text-slate-500 mt-2">
-            Almost there!
-          </p>
-        </div>
+        <p className="login-subtitle">
+          Almost there!
+        </p>
 
-        <h2 className="text-2xl font-semibold text-slate-800 mb-4">
+        {/* Page Heading */}
+        <h2 className="login-heading">
           Verify Your Email
         </h2>
 
-        <p className="text-sm text-slate-600 mb-6">
+        {/* Email Information */}
+        <p className="login-message">
           Verification code sent to:
-          <br />
-          <span className="font-semibold text-indigo-700">
-            {email}
-          </span>
+        </p>
+
+        <p className="login-message">
+          <strong>{email || "Your UCF email address"}</strong>
         </p>
 
         {/* Verification Form */}
-        <EmailVerificationForm />
+        <form onSubmit={handleVerification}>
+
+          <label className="login-field">
+            Verification Code
+
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Enter your code"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              required
+              maxLength={6}
+              pattern="[0-9]{6}"
+              title="Please enter a 6-digit verification code."
+              className="login-input"
+            />
+          </label>
+
+          <button
+            type="submit"
+            className="login-submit"
+          >
+            Verify Email
+          </button>
+
+        </form>
+
+        {/* Response Message */}
+        {message && (
+          <p className="login-message">
+            {message}
+          </p>
+        )}
 
         {/* Back to Login */}
-        <div className="text-center mt-8 text-sm text-slate-600">
+        <div className="login-register">
           Already verified?{" "}
+
           <button
             type="button"
-            onClick={onBackToLogin}
-            className="text-link"
+            onClick={() => navigate("/login")}
           >
             Log In
           </button>

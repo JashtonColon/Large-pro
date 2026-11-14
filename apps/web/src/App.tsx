@@ -1,54 +1,45 @@
-import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import EmailVerificationPage from "./pages/EmailVerificationPage";
+import AvailabilityPage from "./pages/AvailabilityPage";
+import CoursesPage from "./pages/CoursesPage";
+import ProfilePage from "./pages/ProfilePage";
+import FindQuestsPage from "./pages/FindQuestsPage";
+import CreateQuestPage from "./pages/CreateQuestPage";
+import MyAppointmentsPage from "./pages/MyAppointmentsPage";
+import PasswordResetPage from "./pages/PasswordResetPage";
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<
-    "login" | "register" | "forgotPassword" | "verifyEmail"
-  >("login");
-
-  const [verificationEmail, setVerificationEmail] = useState("");
-
-  // Login Page
-  if (currentPage === "login") {
-    return (
-      <LoginPage
-        onCreateAccount={() => setCurrentPage("register")}
-        onForgotPassword={() => setCurrentPage("forgotPassword")}
-      />
-    );
-  }
-
-  // Registration Page
-  if (currentPage === "register") {
-    return (
-      <RegisterPage
-        onLogin={() => setCurrentPage("login")}
-        onRegistrationComplete={(email) => {
-          setVerificationEmail(email);
-          setCurrentPage("verifyEmail");
-        }}
-      />
-    );
-  }
-
-  // Forgot Password Page
-  if (currentPage === "forgotPassword") {
-    return (
-      <ForgotPasswordPage
-        onBackToLogin={() => setCurrentPage("login")}
-      />
-    );
-  }
-
-  // Email Verification Page
   return (
-    <EmailVerificationPage
-      email={verificationEmail}
-      onBackToLogin={() => setCurrentPage("login")}
-    />
+    <BrowserRouter>
+      <Routes>
+
+        {/* Default Page */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* Authentication Pages */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify-email" element={<EmailVerificationPage />} />
+
+        {/* Main Application */}
+
+        <Route path="/availability" element={<AvailabilityPage />} />
+        <Route path="/courses" element={<CoursesPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/quests" element={<FindQuestsPage />} />
+        <Route path="/create-quest" element={<CreateQuestPage />} />
+        <Route path="/appointments" element={<MyAppointmentsPage />} />
+        <Route path="/password-reset" element={<PasswordResetPage />} />
+
+        {/* Unknown URLs */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+
+      </Routes>
+    </BrowserRouter>
   );
 }

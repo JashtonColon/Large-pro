@@ -1,48 +1,120 @@
-import RegisterForm from "../components/RegisterForm";
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
-type RegisterPageProps = {
-  onLogin: () => void;
-  onRegistrationComplete: (email: string) => void;
-};
+export default function RegisterPage() {
+  const navigate = useNavigate();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
 
-export default function RegisterPage({
-  onLogin,
-  onRegistrationComplete,
-}: RegisterPageProps) {
+  function handleRegister(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+
+    navigate("/verify-email", { state: { email } });
+  }
+
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-      <div className="auth-card">
+    <main className="login-page">
+      <section className="login-card register-card">
+        <h1 className="login-brand">Knight Study Buddy</h1>
+        <p className="login-subtitle">Begin your next study quest.</p>
+        <h2 className="login-heading">Create Your Account</h2>
 
-        <div className="text-center mb-8">
-          <h1 className="brand-title">
-            UCF Study Buddy
-          </h1>
+        <form onSubmit={handleRegister}>
+          <div className="register-name-row">
+            <label className="login-field" htmlFor="register-first-name">
+              First Name
+              <input
+                id="register-first-name"
+                className="login-input"
+                type="text"
+                placeholder="First name"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+                required
+              />
+            </label>
 
-          <p className="text-slate-500 mt-2">
-            Join Study Buddy and find your study partner.
-          </p>
-        </div>
+            <label className="login-field" htmlFor="register-last-name">
+              Last Name
+              <input
+                id="register-last-name"
+                className="login-input"
+                type="text"
+                placeholder="Last name"
+                autoComplete="family-name"
+                value={lastName}
+                onChange={(event) => setLastName(event.target.value)}
+                required
+              />
+            </label>
+          </div>
 
-        <h2 className="text-2xl font-semibold text-slate-800 mb-6">
-          Create Your Account
-        </h2>
+          <label className="login-field" htmlFor="register-email">
+            UCF Email
+            <input
+              id="register-email"
+              className="login-input"
+              type="email"
+              placeholder="yourname@ucf.edu"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </label>
 
-        <RegisterForm
-          onRegistrationComplete={onRegistrationComplete}
-        />
+          <label className="login-field" htmlFor="register-password">
+            Password
+            <input
+              id="register-password"
+              className="login-input"
+              type="password"
+              placeholder="Create a password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </label>
 
-        <div className="text-center mt-8 text-sm text-slate-600">
+          <label className="login-field" htmlFor="register-confirm-password">
+            Confirm Password
+            <input
+              id="register-confirm-password"
+              className="login-input"
+              type="password"
+              placeholder="Enter your password again"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              required
+            />
+          </label>
+
+          {message && <p className="login-message" role="alert">{message}</p>}
+
+          <button className="login-submit" type="submit">
+            Create Account
+          </button>
+        </form>
+
+        <p className="login-register">
           Already have an account?{" "}
-          <button
-            type="button"
-            onClick={onLogin}
-            className="text-link"
-          >
+          <button type="button" onClick={() => navigate("/login")}>
             Log In
           </button>
-        </div>
-
-      </div>
+        </p>
+      </section>
     </main>
   );
 }

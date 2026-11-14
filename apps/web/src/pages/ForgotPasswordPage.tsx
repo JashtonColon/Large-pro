@@ -1,43 +1,85 @@
-import ForgotPasswordForm from "../components/ForgotPasswordForm";
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
-type ForgotPasswordPageProps = {
-  onBackToLogin: () => void;
-};
+export default function ForgotPasswordPage() {
+  const navigate = useNavigate();
 
-export default function ForgotPasswordPage({
-  onBackToLogin,
-}: ForgotPasswordPageProps) {
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setMessage(
+      "If an account exists for this email, a reset link will be sent."
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-      <div className="auth-card">
+    <main className="login-page">
+      <div className="login-card">
 
-        {/* Heading */}
-        <div className="text-center mb-8">
-          <h1 className="brand-title">
-            UCF Study Buddy
-          </h1>
+        {/* Branding */}
+        <h1 className="login-brand">
+          Knight Study Buddy
+        </h1>
 
-          <p className="text-slate-500 mt-2">
-            Find your perfect study partner.
-          </p>
-        </div>
+        <p className="login-subtitle">
+          Reset your password.
+        </p>
 
-        <h2 className="text-2xl font-semibold text-slate-800 mb-6">
+        {/* Page Heading */}
+        <h2 className="login-heading">
           Forgot Password?
         </h2>
 
-        {/* Forgot Password Form */}
-        <ForgotPasswordForm />
+        {/* Instructions */}
+        <p className="login-message">
+          Enter your UCF email address and we'll send you
+          instructions to reset your password.
+        </p>
+
+        {/* Password Reset Form */}
+        <form onSubmit={handleSubmit}>
+
+          <label className="login-field">
+            UCF Email
+
+            <input
+              type="email"
+              placeholder="yourname@ucf.edu"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              className="login-input"
+            />
+          </label>
+
+          <button
+            type="submit"
+            className="login-submit"
+          >
+            Send Reset Instructions
+          </button>
+
+        </form>
+
+        {/* Response Message */}
+        {message && (
+          <p className="login-message">
+            {message}
+          </p>
+        )}
 
         {/* Back to Login */}
-        <div className="text-center mt-8 text-sm text-slate-600">
-          Remember your password?{" "}
+        <div className="login-register">
+          Remembered your password?{" "}
+
           <button
             type="button"
-            onClick={onBackToLogin}
-            className="text-link"
+            onClick={() => navigate("/login")}
           >
-            Log In
+            Back to Login
           </button>
         </div>
 
