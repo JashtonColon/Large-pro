@@ -69,6 +69,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           key: _formKey,
           child: AuthTextField(
             label: 'UCF Email',
+                  icon: Icons.mail_outline,
             hint: 'yourname@ucf.edu',
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,

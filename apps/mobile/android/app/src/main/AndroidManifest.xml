@@ -2,7 +2,8 @@
     <!-- Needed so the release app can reach the backend API. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="UCF Study Buddy"
+        android:label="Knight Study Buddy"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
