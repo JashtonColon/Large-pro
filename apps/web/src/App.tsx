@@ -14,6 +14,9 @@ import MyAppointmentsPage from "./pages/MyAppointmentsPage";
 import PasswordResetPage from "./pages/PasswordResetPage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import WelcomePage from "./pages/WelcomePage";
+import CastleScene from "./components/theme/CastleScene";
+import { TransitionProvider } from "./components/theme/Transitions";
 
 // Shorthand: wrap a page so only logged-in users can see it
 function privatePage(page: ReactNode) {
@@ -23,10 +26,12 @@ function privatePage(page: ReactNode) {
 export default function App() {
   return (
     <BrowserRouter>
+      <CastleScene />
+      <TransitionProvider>
       <Routes>
 
-        {/* Default Page */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Welcome page: what the app is, then Sign Up / Log In */}
+        <Route path="/" element={<WelcomePage />} />
 
         {/* Authentication Pages (public) */}
         <Route path="/login" element={<LoginPage />} />
@@ -49,9 +54,10 @@ export default function App() {
         <Route path="/appointments" element={privatePage(<MyAppointmentsPage />)} />
 
         {/* Unknown URLs */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
+      </TransitionProvider>
     </BrowserRouter>
   );
 }
