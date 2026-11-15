@@ -24,6 +24,8 @@ export async function createQuest(
     throw new Error("Invalid author ID");
   }
 
+  await checkTimeConflict(input, authorId);
+
   // Create and save the quest in MongoDB
   const quest = await Quest.create({
     title: input.title,
@@ -106,12 +108,23 @@ function parseQuestFilters(input: QuestFilterInput) {
   return filters;
 }
 
-function filterQuestResults(quests: IQuest[], filters: ReturnType<typeof parseQuestFilters>) {
-  return quests.filter(quest =>
-    (!filters.course || normalizeCourse(quest.subject) === filters.course) &&
-    (filters.startTime === undefined || quest.startTime >= filters.startTime) &&
-    (filters.endTime === undefined || quest.endTime <= filters.endTime)
-  );
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildQuestQuery(input: QuestFilterInput): mongoose.QueryFilter<IQuest> {
+  const { course, startTime, endTime } = parseQuestFilters(input);
+  const query: mongoose.QueryFilter<IQuest> = { status: "open" };
+
+  if (course) {
+    // Match normalized course codes even when stored subjects contain spaces.
+    const pattern = [...course].map(escapeRegex).join("\\s*");
+    query.subject = new RegExp(`^\\s*${pattern}\\s*$`, "i");
+  }
+  if (startTime !== undefined) query.startTime = { $gte: startTime };
+  if (endTime !== undefined) query.endTime = { $lte: endTime };
+
+  return query;
 }
 
 export async function searchQuests(
@@ -119,7 +132,7 @@ export async function searchQuests(
   title: unknown = "",
   filterInput: QuestFilterInput = {}
 ) {
-  const resultFilters = parseQuestFilters(filterInput);
+  const query = buildQuestQuery(filterInput);
   const filters: Record<string, RegExp> = {};
   for (const [field, value] of [["subject", subject], ["title", title]] as const) {
     if (typeof value !== "string") {
@@ -129,16 +142,16 @@ export async function searchQuests(
     if (!text) continue;
 
     // Treat search text literally, including characters like +, ( and .
-    const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escaped = escapeRegex(text);
     filters[field] = new RegExp(field === "subject" ? `^${escaped}$` : escaped, "i");
   }
 
-  const quests = await Quest.find(filters).sort({ day: 1, startTime: 1, _id: 1 }).limit(30);
-  return filterQuestResults(quests, resultFilters);
+  // Keep subject search and course filtering as independent conditions.
+  return Quest.find({ $and: [query, filters] }).sort({ day: 1, startTime: 1, _id: 1 }).limit(30);
 }
 
 export async function getPartialMatches(userId: string, filterInput: QuestFilterInput = {}) {
-  const resultFilters = parseQuestFilters(filterInput);
+  const query = buildQuestQuery(filterInput);
   const user = await User.findById(userId);
   if (!user) throw new QuestError(404, "User not found.");
 
@@ -148,7 +161,7 @@ export async function getPartialMatches(userId: string, filterInput: QuestFilter
   const courseCodes = new Set(courses.map(normalizeCourse));
   const matches: IQuest[] = [];
   const quests = Quest.find({
-    status: "open",
+    ...query,
     author: { $ne: userId },
     members: { $ne: userId },
     joinRequests: { $ne: userId },
@@ -168,7 +181,7 @@ export async function getPartialMatches(userId: string, filterInput: QuestFilter
     if (fitsAvailability) matches.push(quest);
     if (matches.length === 30) break;
   }
-  return filterQuestResults(matches, resultFilters);
+  return matches;
 }
 
 function requireAuthor(quest: IQuest, userId: string) {
@@ -177,9 +190,12 @@ function requireAuthor(quest: IQuest, userId: string) {
   }
 }
 
-async function checkTimeConflict(quest: IQuest, userId: string) {
+async function checkTimeConflict(
+  quest: Pick<IQuest, "day" | "startTime" | "endTime"> & { _id?: IQuest["_id"] },
+  userId: string
+) {
   const conflict = await Quest.exists({
-    _id: { $ne: quest._id },
+    ...(quest._id ? { _id: { $ne: quest._id } } : {}),
     day: quest.day,
     startTime: { $lt: quest.endTime },
     endTime: { $gt: quest.startTime },

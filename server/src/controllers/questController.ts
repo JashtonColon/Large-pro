@@ -251,11 +251,7 @@ export async function createQuestController(
     });
 
   } catch (error) {
-    console.error("Failed to create quest:", error);
-
-    res.status(500).json({
-      message: "Unable to create quest right now.",
-    });
+    handleQuestError(res, error, "Unable to create quest right now.");
   }
 }
 

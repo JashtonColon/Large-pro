@@ -5,6 +5,7 @@ import Quest from "../models/Quest.js";
 import { searchQuests, QuestError } from "../services/questService.js";
 import { searchQuestsController } from "../controllers/questController.js";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { matchesDiscoveryQuery } from "./helpers/discoveryQuery.js";
 
 const quests = [
   { subject: "COP4331", title: "Final exam review" },
@@ -12,16 +13,14 @@ const quests = [
   { subject: "COP3503", title: "Exam review" },
   { subject: "COP43310", title: "Exam review" },
   { subject: "C++", title: "Review (part 1)." },
-];
+].map(quest => ({ ...quest, status: "open" as const, startTime: 600, endTime: 660 }));
 
 test("search supports both fields, either field, and empty filters", async t => {
-  t.mock.method(Quest, "find", (filters: Record<string, RegExp>) => ({
+  t.mock.method(Quest, "find", (filters: Parameters<typeof matchesDiscoveryQuery>[1]) => ({
     sort: () => ({
       limit: async (maximum: number) => {
         assert.equal(maximum, 30);
-        return quests.filter(quest => Object.entries(filters).every(
-          ([field, pattern]) => pattern.test(quest[field as keyof typeof quest])
-        )).slice(0, maximum);
+        return quests.filter(quest => matchesDiscoveryQuery(quest, filters)).slice(0, maximum);
       },
     }),
   }));
@@ -68,9 +67,10 @@ test("controller returns quests, validates search input, and requires authentica
   await searchQuestsController(req, res);
   assert.equal(statusCode, 200);
   assert.deepEqual(body, { quests });
-  const filters = find.mock.calls[0]?.arguments[0] as unknown as Record<string, RegExp>;
-  assert.equal(filters.subject?.test("cop4331"), true);
-  assert.equal(filters.title?.test("Exam review"), true);
+  const filters = find.mock.calls[0]?.arguments[0] as unknown as Parameters<typeof matchesDiscoveryQuery>[1];
+  assert.equal(matchesDiscoveryQuery(quests[0]!, filters), true);
+  assert.equal(matchesDiscoveryQuery(quests[1]!, filters), false);
+  assert.equal(matchesDiscoveryQuery({ ...quests[0]!, status: "closed" }, filters), false);
 
   await searchQuestsController({ ...req, query: { title: ["exam", "review"] } } as unknown as AuthenticatedRequest, res);
   assert.equal(statusCode, 400);
