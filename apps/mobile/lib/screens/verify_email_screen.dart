@@ -17,6 +17,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   final _formKey = GlobalKey<FormState>();
   final _codeController = TextEditingController();
   bool _loading = false;
+  bool _resending = false;
   String? _error;
 
   String get _email =>
@@ -48,6 +49,25 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     }
   }
 
+  Future<void> _resend() async {
+    if (_resending) return;
+    setState(() {
+      _resending = true;
+      _error = null;
+    });
+    try {
+      await AuthService.resendVerification(_email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('New code sent. Check your inbox and spam.')),
+      );
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _resending = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AuthCard(
@@ -72,7 +92,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           key: _formKey,
           child: AuthTextField(
             label: 'Verification Code',
-            hint: 'Enter your code',
+                  icon: Icons.pin_outlined,
+            hint: 'Enter the 6-digit code',
             controller: _codeController,
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
@@ -84,6 +105,11 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         if (_error != null) ErrorBanner(message: _error!),
         PrimaryButton(
             label: 'Verify Email', loading: _loading, onPressed: _submit),
+        FooterLink(
+          text: _resending ? 'Sending a new code...' : "Didn't get it?",
+          linkText: 'Resend Code',
+          onTap: _resend,
+        ),
         FooterLink(
           text: 'Already verified?',
           linkText: 'Log In',
