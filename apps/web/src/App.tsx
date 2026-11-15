@@ -15,7 +15,6 @@ import PasswordResetPage from "./pages/PasswordResetPage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import WelcomePage from "./pages/WelcomePage";
-import AboutPage from "./pages/AboutPage";
 import CastleScene from "./components/theme/CastleScene";
 import { TransitionProvider } from "./components/theme/Transitions";
 
@@ -33,7 +32,7 @@ export default function App() {
 
         {/* Welcome page: what the app is, then Sign Up / Log In */}
         <Route path="/" element={<WelcomePage />} />
-        <Route path="/about" element={<AboutPage />} />
+        <Route path="/about" element={<Navigate to="/" replace />} />
 
         {/* Authentication Pages (public) */}
         <Route path="/login" element={<LoginPage />} />
