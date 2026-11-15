@@ -5,6 +5,14 @@ class Validators {
   static final RegExp _ucfEmailRegex =
       RegExp(r'^[^@\s]+@([a-z0-9-]+\.)*ucf\.edu$', caseSensitive: false);
 
+  static final RegExp _anyEmailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  /// True for a real-looking email that is NOT a UCF one (e.g. @gmail.com).
+  static bool isNonUcfEmail(String? value) {
+    final v = value?.trim() ?? '';
+    return _anyEmailRegex.hasMatch(v) && !_ucfEmailRegex.hasMatch(v);
+  }
+
   static String? ucfEmail(String? value) {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return 'Enter your UCF email';
