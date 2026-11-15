@@ -1,8 +1,17 @@
 
-import type { Request, Response } from "express";
+import type { Response } from "express";
+
+import {
+  createQuest,
+  type CreateQuestInput,
+} from "../services/questService.js";
+
+import type {
+  AuthenticatedRequest,
+} from "../middleware/authMiddleware.js";
 
 export async function createQuestController(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ): Promise<void> {
   try {
@@ -84,10 +93,34 @@ export async function createQuestController(
       return;
     }
 
-    // TODO: Connect authenticated user ID and createQuest service.
-    // Do not accept an arbitrary author ID from the request body.
-    res.status(501).json({
-      message: "Quest creation requires authenticated user middleware.",
+    // Get the authenticated student's ID
+    const authorId = req.userId;
+
+    if (!authorId) {
+      res.status(401).json({
+        message: "Authentication required.",
+      });
+      return;
+    }
+
+    // Prepare the quest information
+    const input: CreateQuestInput = {
+      title: title.trim(),
+      subject: subject.trim(),
+      location: location.trim(),
+      description: description?.trim(),
+      day: parsedDay,
+      startTime: startTime.trim(),
+      endTime: endTime.trim(),
+      maxMember,
+    };
+
+    // Create the quest in MongoDB
+    const quest = await createQuest(input, authorId);
+
+    res.status(201).json({
+      message: "Quest created successfully.",
+      quest,
     });
 
   } catch (error) {
