@@ -182,7 +182,9 @@ class _HomeScreenState extends State<HomeScreen>
         if (mounted) setState(() {});
       }).catchError((_) {});
     } on ApiException catch (e) {
-      if (mounted) _toast(e.message);
+      if (!mounted) return;
+      _toast(e.message);
+      setState(() {}); // shows "Requested" if it was already pending
     }
   }
 
