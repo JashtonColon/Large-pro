@@ -49,7 +49,12 @@ export default function WelcomePage() {
             Log In
           </button>
         </div>
-        <p className="welcome-note">Free for UCF students · @ucf.edu email required</p>
+        <p className="welcome-note">
+          Free for UCF students · @ucf.edu email required ·{" "}
+          <button className="welcome-link" onClick={() => navigate("/about")}>
+            What is Knight Study Buddy?
+          </button>
+        </p>
       </section>
 
       <section className="welcome-panel">

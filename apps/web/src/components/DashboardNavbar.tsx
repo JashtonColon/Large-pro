@@ -45,6 +45,10 @@ export default function DashboardNavbar() {
             My Profile
           </NavLink>
 
+          <NavLink to="/about">
+            About
+          </NavLink>
+
           
 
         </nav>
