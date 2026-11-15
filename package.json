@@ -11,5 +11,8 @@
     "dev:server": "npm run dev --workspace @study-buddy/server",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces"
+  },
+  "dependencies": {
+    "react-router-dom": "^7.18.5"
   }
 }
