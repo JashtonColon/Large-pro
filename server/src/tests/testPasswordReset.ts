@@ -1,4 +1,4 @@
-//npx tsx src/testPasswordReset.ts
+//Run: npx tsx src/tests/testPasswordReset.ts
 import "dotenv/config";
 import { generateResetToken } from "../utils/generateResetToken.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";

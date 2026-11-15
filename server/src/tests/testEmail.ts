@@ -1,4 +1,4 @@
-//To test, run: npx tsx src/testEmail.ts
+//To test, run: npx tsx src/tests/testEmail.ts
 //Make sure you are in the server dir when running this command
 import nodemailer from "nodemailer";
 import "dotenv/config";

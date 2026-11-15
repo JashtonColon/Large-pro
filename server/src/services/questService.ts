@@ -1,14 +1,15 @@
 import mongoose from "mongoose";
 import Quest from "../models/Quest.js";
 
+
 export interface CreateQuestInput {
   title: string;
   subject: string;
   location: string;
   description?: string;
   day: Date;
-  startTime: string;
-  endTime: string;
+  startTime: number;
+  endTime: number;
   maxMember: number;
 }
 
@@ -46,8 +47,8 @@ export interface UpdateQuestInput {
   location?: string;
   description?: string;
   day?: Date;
-  startTime?: string;
-  endTime?: string;
+  startTime?: number;
+  endTime?: number;
   maxMember?: number;
 }
 
@@ -85,11 +86,21 @@ export async function updateQuest(
     throw new QuestError(403, "You cannot edit another user's quest.");
   }
 
+  
   // Update only the fields provided
   Object.assign(quest, input);
 
+  // Ensure the quest ends after it starts
+  if (quest.endTime <= quest.startTime) {
+    throw new QuestError(
+      400,
+      "End time must be after start time."
+    );
+  }
+
   // Save the updated quest
   await quest.save();
+
 
   return quest;
 }

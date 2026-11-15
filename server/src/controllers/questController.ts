@@ -14,6 +14,8 @@ import type {
   AuthenticatedRequest,
 } from "../middleware/authMiddleware.js";
 
+import { timeToMinutes } from "../utils/timeUtils.js";
+
 export async function createQuestController(
   req: AuthenticatedRequest,
   res: Response
@@ -108,14 +110,37 @@ export async function createQuestController(
     }
 
     // Prepare the quest information
+
+  // Convert start and end times to minutes since midnight
+  let startMinutes: number;
+  let endMinutes: number;
+
+  try {
+    startMinutes = timeToMinutes(startTime);
+    endMinutes = timeToMinutes(endTime);
+  } catch {
+    res.status(400).json({
+      message: "Start and end times must use HH:MM AM/PM format.",
+    });
+    return;
+  }
+
+  // Ensure the end time is after the start time
+  if (endMinutes <= startMinutes) {
+    res.status(400).json({
+      message: "End time must be after start time.",
+    });
+    return;
+  }
+
     const input: CreateQuestInput = {
       title: title.trim(),
       subject: subject.trim(),
       location: location.trim(),
       description: description?.trim(),
       day: parsedDay,
-      startTime: startTime.trim(),
-      endTime: endTime.trim(),
+      startTime: startMinutes,
+      endTime: endMinutes,
       maxMember,
     };
 
@@ -204,8 +229,6 @@ export async function updateQuestController(
       "title",
       "subject",
       "location",
-      "startTime",
-      "endTime",
     ] as const) {
       if (field in changes) {
         const value = changes[field];
@@ -218,6 +241,29 @@ export async function updateQuestController(
         }
 
         input[field] = value.trim();
+      }
+    }
+
+    // Validate and convert start/end times
+    for (const field of ["startTime", "endTime"] as const) {
+      if (field in changes) {
+        const value = changes[field];
+
+        if (typeof value !== "string") {
+          res.status(400).json({
+            message: `${field} must be a time string.`,
+          });
+          return;
+        }
+
+        try {
+          input[field] = timeToMinutes(value);
+        } catch {
+          res.status(400).json({
+            message: `${field} must use HH:MM AM/PM format.`,
+          });
+          return;
+        }
       }
     }
 

@@ -8,8 +8,8 @@ export interface IQuest extends Document {
   description?: string;
   author: mongoose.Types.ObjectId;
   day: Date;
-  startTime: string;
-  endTime: string;
+  startTime: number;
+  endTime: number;
   members: mongoose.Types.ObjectId[];
   maxMember: number;
   status: "open" | "closed";
@@ -26,8 +26,8 @@ const questSchema = new Schema<IQuest>({
     required: true
   },
   day: { type: Date, required: true },
-  startTime: { type: String, required: true },
-  endTime: { type: String, required: true },
+  startTime: { type: Number, required: true, min: 0, max: 1439 },
+  endTime: { type: Number, required: true, min: 0, max: 1439 },
   members: {
   type: [{
     type: Schema.Types.ObjectId,
