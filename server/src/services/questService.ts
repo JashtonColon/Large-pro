@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import Quest, { type IQuest } from "../models/Quest.js";
+import User from "../models/User.js";
+import { normalizeCourse } from "../utils/courseUtils.js";
 
 
 export interface CreateQuestInput {
@@ -70,6 +72,39 @@ async function findQuest(questId: string) {
   const quest = await Quest.findById(questId);
   if (!quest) throw new QuestError(404, "Quest not found.");
   return quest;
+}
+
+export async function getPartialMatches(userId: string) {
+  const user = await User.findById(userId);
+  if (!user) throw new QuestError(404, "User not found.");
+
+  const { courses = [], availability = [] } = user.profile ?? {};
+  if (!courses.length || !availability.length) return [];
+
+  const courseCodes = new Set(courses.map(normalizeCourse));
+  const matches: IQuest[] = [];
+  const quests = Quest.find({
+    status: "open",
+    author: { $ne: userId },
+    members: { $ne: userId },
+    joinRequests: { $ne: userId },
+    $expr: { $lt: [{ $size: "$members" }, "$maxMember"] },
+  }).sort({ day: 1, startTime: 1, _id: 1 }).cursor();
+
+  // Read one quest at a time and stop after 30 matches.
+  for await (const quest of quests) {
+    if (!courseCodes.has(normalizeCourse(quest.subject))) continue;
+
+    // Quest dates are stored at UTC midnight as calendar dates.
+    const fitsAvailability = availability.some(slot =>
+      slot.dayOfWeek === quest.day.getUTCDay() &&
+      quest.startTime >= slot.startMinute &&
+      quest.endTime <= slot.endMinute
+    );
+    if (fitsAvailability) matches.push(quest);
+    if (matches.length === 30) break;
+  }
+  return matches;
 }
 
 function requireAuthor(quest: IQuest, userId: string) {

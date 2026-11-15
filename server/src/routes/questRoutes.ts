@@ -10,9 +10,13 @@ import {
   getQuestJoinRequestsController,
   reviewQuestJoinRequestController,
   leaveQuestController,
+  getPartialMatchesController,
 } from "../controllers/questController.js";
 
 const router = Router();
+
+// Match the authenticated user's courses and weekly availability.
+router.get("/matches", authMiddleware, getPartialMatchesController);
 
 // Request membership, review pending requests, and leave a quest.
 router.post("/:id/join", authMiddleware, joinQuestController);

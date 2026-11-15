@@ -1,4 +1,5 @@
 import User, { type IUserProfile } from '../models/User.js';
+import { normalizeCourse } from '../utils/courseUtils.js';
 
 export class ProfileError extends Error {
     constructor(public statusCode: number, message: string) {
@@ -23,7 +24,7 @@ export function parseProfileInput(input: unknown, creating: boolean): Partial<IU
             !data.courses.every(course => typeof course === 'string' && course.trim())) {
             throw new ProfileError(400, 'Provide courses as an array of nonempty course codes.');
         }
-        result.courses = [...new Set(data.courses.map(course => course.replace(/\s+/g, '').toUpperCase()))];
+        result.courses = [...new Set(data.courses.map(normalizeCourse))];
     }
     if (creating || data.availability !== undefined) {
         if (!Array.isArray(data.availability) || (creating && !data.availability.length)) {

@@ -9,6 +9,7 @@ import {
   getQuestJoinRequests,
   reviewQuestJoinRequest,
   leaveQuest,
+  getPartialMatches,
   QuestError,
   type CreateQuestInput,
   type UpdateQuestInput,
@@ -39,6 +40,16 @@ function handleQuestError(
   }
   console.error("Quest error:", error);
   res.status(500).json({ message });
+}
+
+export async function getPartialMatchesController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    if (!req.userId) throw new QuestError(401, "Authentication required.");
+    const matches = await getPartialMatches(req.userId);
+    res.status(200).json({ matches });
+  } catch (error) {
+    handleQuestError(res, error, "Unable to retrieve quest matches right now.");
+  }
 }
 
 export async function joinQuestController(req: AuthenticatedRequest, res: Response): Promise<void> {
