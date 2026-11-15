@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardNavbar from "../components/DashboardNavbar";
@@ -8,11 +9,14 @@ type Quest = {
   title: string;
   description: string;
   courseDescription?: string;
-  schedule: string;
+  schedule?: string;
+  date?: string;
+  startTime?: number;
+  endTime?: number;
   location: string;
   reward?: string;
   spots: number;
-  posted: string;
+  posted?: string;
 };
 
 const sampleQuests: Quest[] = [
@@ -90,36 +94,72 @@ function readQuests(key: string): Quest[] {
 
 export default function FindQuestsPage() {
   const navigate = useNavigate();
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
-  const [createdQuests] = useState(() => readQuests("createdQuests"));
-  const [joinedQuests, setJoinedQuests] = useState(() => readQuests("acceptedQuests"));
 
+  const [createdQuests] = useState(() =>
+    readQuests("createdQuests")
+  );
+
+  const [joinedQuests, setJoinedQuests] = useState(() =>
+    readQuests("acceptedQuests")
+  );
+
+  // Combine user-created quests with sample quests.
   const quests = [...createdQuests, ...sampleQuests];
+
   const joinedIds = joinedQuests.map((quest) => quest.id);
 
   const visibleQuests = useMemo(() => {
     const query = search.toLowerCase().replace(/\s/g, "");
 
     return quests.filter((quest) => {
-      const text = [quest.course, quest.title, quest.description, quest.courseDescription, quest.location]
+      const text = [
+        quest.course,
+        quest.title,
+        quest.description,
+        quest.courseDescription,
+        quest.location,
+      ]
         .join(" ")
         .toLowerCase()
         .replace(/\s/g, "");
+
       const matchesSearch = text.includes(query);
-      const matchesFilter = filter === "All" || quest.course.toUpperCase().startsWith(filter);
+
+      const matchesFilter =
+        filter === "All" ||
+        quest.course.toUpperCase().startsWith(filter);
+
       return matchesSearch && matchesFilter;
     });
   }, [createdQuests, search, filter]);
 
+  function isOwnQuest(quest: Quest) {
+    return createdQuests.some(
+      (createdQuest) => createdQuest.id === quest.id
+    );
+  }
+
   function toggleJoin(quest: Quest) {
+    // Prevent users from joining their own quests.
+    if (isOwnQuest(quest)) {
+      return;
+    }
+
     const alreadyJoined = joinedIds.includes(quest.id);
+
     const updated = alreadyJoined
       ? joinedQuests.filter((item) => item.id !== quest.id)
       : [...joinedQuests, quest];
 
     setJoinedQuests(updated);
-    localStorage.setItem("acceptedQuests", JSON.stringify(updated));
+
+    localStorage.setItem(
+      "acceptedQuests",
+      JSON.stringify(updated)
+    );
   }
 
   return (
@@ -129,19 +169,24 @@ export default function FindQuestsPage() {
       <div className="welcome-container">
         <div className="welcome-banner">
           <span className="welcome-icon">🛡</span>
-          <p className="welcome-message">Welcome, Knight! Find a study group or post your own quest.</p>
+          <p className="welcome-message">
+            Welcome, Knight! Find a study group or post your own quest.
+          </p>
         </div>
       </div>
 
       <main className="quest-board">
         <header className="quest-board-heading">
           <h1 className="quest-board-title">♧ Quest Board ♧</h1>
-          <p className="quest-board-subtitle">Knights seeking study partners</p>
+          <p className="quest-board-subtitle">
+            Knights seeking study partners
+          </p>
         </header>
 
         <section className="quest-controls" aria-label="Search quests">
           <label className="quest-search">
             <span className="quest-search-icon">⌕</span>
+
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -150,12 +195,17 @@ export default function FindQuestsPage() {
             />
           </label>
 
-          <div className="quest-filters" aria-label="Filter by course prefix">
+          <div
+            className="quest-filters"
+            aria-label="Filter by course prefix"
+          >
             {filters.map((item) => (
               <button
                 key={item}
                 type="button"
-                className={`quest-filter ${filter === item ? "active" : ""}`}
+                className={`quest-filter ${
+                  filter === item ? "active" : ""
+                }`}
                 onClick={() => setFilter(item)}
                 aria-pressed={filter === item}
               >
@@ -166,38 +216,89 @@ export default function FindQuestsPage() {
         </section>
 
         <section className="quest-list" aria-live="polite">
-          {visibleQuests.length ? visibleQuests.map((quest) => {
-            const joined = joinedIds.includes(quest.id);
-            return (
-              <article className="quest-card" key={quest.id}>
-                <span className="quest-pushpin" />
-                <div className="quest-card-top">
-                  <span className="quest-course">{quest.course}</span>
-                  <span className="quest-posted">{quest.posted}</span>
-                </div>
-                <h2 className="quest-title">{quest.title}</h2>
-                {quest.courseDescription && <p className="quest-course-description">{quest.courseDescription}</p>}
-                <p className="quest-description">{quest.description}</p>
-                <div className="quest-details">
-                  <div className="quest-detail"><span>◷</span><span>{quest.schedule}</span></div>
-                  <div className="quest-detail"><span>♧</span><span>{quest.location}</span></div>
-                </div>
-                <div className="quest-bottom">
-                  {quest.reward && <p className="quest-reward"><span className="quest-reward-icon">🏆</span>{quest.reward}</p>}
-                  <div className="quest-card-actions">
-                    <span className="quest-spots">Max {quest.spots} people</span>
-                    <button
-                      type="button"
-                      className={`quest-join-button ${joined ? "joined" : ""}`}
-                      onClick={() => toggleJoin(quest)}
-                    >
-                      {joined ? "Joined ✓" : "Join Quest"}
-                    </button>
+          {visibleQuests.length ? (
+            visibleQuests.map((quest) => {
+              const joined = joinedIds.includes(quest.id);
+              const ownQuest = isOwnQuest(quest);
+
+              return (
+                <article className="quest-card" key={quest.id}>
+                  <span className="quest-pushpin" />
+
+                  <div className="quest-card-top">
+                    <span className="quest-course">
+                      {quest.course}
+                    </span>
+
+                    <span className="quest-posted">
+                      {quest.posted || "Recently posted"}
+                    </span>
                   </div>
-                </div>
-              </article>
-            );
-          }) : (
+
+                  <h2 className="quest-title">
+                    {quest.title}
+                  </h2>
+
+                  {quest.courseDescription && (
+                    <p className="quest-course-description">
+                      {quest.courseDescription}
+                    </p>
+                  )}
+
+                  <p className="quest-description">
+                    {quest.description}
+                  </p>
+
+                  <div className="quest-details">
+                    <div className="quest-detail">
+                      <span>◷</span>
+                      <span>
+                        {quest.schedule || "Schedule not provided"}
+                      </span>
+                    </div>
+
+                    <div className="quest-detail">
+                      <span>♧</span>
+                      <span>{quest.location}</span>
+                    </div>
+                  </div>
+
+                  <div className="quest-bottom">
+                    {quest.reward && (
+                      <p className="quest-reward">
+                        <span className="quest-reward-icon">
+                          🏆
+                        </span>
+                        {quest.reward}
+                      </p>
+                    )}
+
+                    <div className="quest-card-actions">
+                      <span className="quest-spots">
+                        Max {quest.spots} people
+                      </span>
+
+                      {ownQuest ? (
+                        <span className="quest-owner-label">
+                          Your Quest ✓
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={`quest-join-button ${
+                            joined ? "joined" : ""
+                          }`}
+                          onClick={() => toggleJoin(quest)}
+                        >
+                          {joined ? "Joined ✓" : "Join Quest"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          ) : (
             <div className="no-quests">
               <h2>No Quests Found</h2>
               <p>Try another search or course filter.</p>
@@ -206,7 +307,10 @@ export default function FindQuestsPage() {
         </section>
       </main>
 
-      <button className="post-quest-button" onClick={() => navigate("/create-quest")}>
+      <button
+        className="post-quest-button"
+        onClick={() => navigate("/create-quest")}
+      >
         ⚑ Post a Quest
       </button>
     </div>
