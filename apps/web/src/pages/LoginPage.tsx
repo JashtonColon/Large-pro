@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, saveSession, ApiError, errorMessage } from "../lib/authApi";
+import { getProfile } from "../lib/profileApi";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -17,7 +18,10 @@ export default function LoginPage() {
     try {
       const result = await login(email.trim(), password);
       saveSession(result.token, result.user);
-      navigate("/quests");
+
+      // First login after verifying: set up the study profile before anything else
+      const profile = await getProfile().catch(() => null);
+      navigate(profile ? "/quests" : "/profile-setup");
     } catch (error) {
       // 403 = correct password, but the email hasn't been verified yet
       if (error instanceof ApiError && error.status === 403) {

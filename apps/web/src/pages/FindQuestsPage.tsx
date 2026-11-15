@@ -1,125 +1,88 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardNavbar from "../components/DashboardNavbar";
-
-type Quest = {
-  id: number;
-  course: string;
-  title: string;
-  description: string;
-  courseDescription?: string;
-  schedule: string;
-  location: string;
-  reward?: string;
-  spots: number;
-  posted: string;
-};
-
-const sampleQuests: Quest[] = [
-  {
-    id: 1,
-    course: "COP 4331",
-    title: "Seeking 2 Brave Souls for the Large Project",
-    courseDescription: "Processes for Object-Oriented Software Development",
-    description: "Building a MERN app and looking for people to work on the API and mobile app. React or Flutter experience is a plus!",
-    schedule: "Tue & Thu, 3–5 PM",
-    location: "Library, 3rd floor",
-    reward: "Eternal gratitude + pizza",
-    spots: 3,
-    posted: "12m ago",
-  },
-  {
-    id: 2,
-    course: "COT 3100",
-    title: "Proofs by Induction Study Group",
-    courseDescription: "Introduction to Discrete Structures",
-    description: "Let's work through practice problems and prepare for Exam 2 together.",
-    schedule: "Wed, 6–8 PM",
-    location: "Student Union",
-    reward: "Snacks provided",
-    spots: 4,
-    posted: "40m ago",
-  },
-  {
-    id: 3,
-    course: "COP 3502",
-    title: "Data Structures Exam Prep",
-    courseDescription: "Computer Science I",
-    description: "Review recursion, linked lists, trees, and sorting algorithms before the exam.",
-    schedule: "Mon, 4–6 PM",
-    location: "Engineering Building",
-    reward: "Good study vibes",
-    spots: 5,
-    posted: "1h ago",
-  },
-  {
-    id: 4,
-    course: "CHM 2045",
-    title: "General Chemistry Exam Prep",
-    courseDescription: "Chemistry Fundamentals I",
-    description: "Work through practice problems and review difficult topics together.",
-    schedule: "Fri, 2–4 PM",
-    location: "Library",
-    reward: "Coffee on me",
-    spots: 3,
-    posted: "2h ago",
-  },
-  {
-    id: 5,
-    course: "CDA 3103",
-    title: "Computer Logic and Architecture",
-    courseDescription: "Computer Logic and Organization",
-    description: "Review datapaths, control signals, and assembly before the test.",
-    schedule: "Thu, 5–7 PM",
-    location: "Engineering Building",
-    reward: "Snacks provided",
-    spots: 4,
-    posted: "3h ago",
-  },
-];
+import { errorMessage } from "../lib/authApi";
+import {
+  searchQuests,
+  joinQuest,
+  leaveQuest,
+  minutesToTime,
+  formatDay,
+  currentUserId,
+  type Quest,
+} from "../lib/questApi";
 
 const filters = ["All", "COP", "CDA", "CHM", "COT"];
 
-function readQuests(key: string): Quest[] {
-  try {
-    return JSON.parse(localStorage.getItem(key) || "[]") as Quest[];
-  } catch {
-    return [];
-  }
-}
-
 export default function FindQuestsPage() {
   const navigate = useNavigate();
+  const userId = currentUserId();
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
-  const [createdQuests] = useState(() => readQuests("createdQuests"));
-  const [joinedQuests, setJoinedQuests] = useState(() => readQuests("acceptedQuests"));
+  const [quests, setQuests] = useState<Quest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const quests = [...createdQuests, ...sampleQuests];
-  const joinedIds = joinedQuests.map((quest) => quest.id);
+  // Ask the SERVER for matching quests whenever the search text changes.
+  // The 300 ms delay ("debounce") waits until the user pauses typing,
+  // so we don't send a request for every single key press.
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setError("");
+      try {
+        setQuests(await searchQuests(search));
+      } catch (err) {
+        setError(errorMessage(err));
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
 
-  const visibleQuests = useMemo(() => {
-    const query = search.toLowerCase().replace(/\s/g, "");
+    return () => clearTimeout(timer); // cancel if the user types again
+  }, [search, refreshKey]);
 
-    return quests.filter((quest) => {
-      const text = [quest.course, quest.title, quest.description, quest.courseDescription, quest.location]
-        .join(" ")
-        .toLowerCase()
-        .replace(/\s/g, "");
-      const matchesSearch = text.includes(query);
-      const matchesFilter = filter === "All" || quest.course.toUpperCase().startsWith(filter);
-      return matchesSearch && matchesFilter;
-    });
-  }, [createdQuests, search, filter]);
+  // Course-prefix buttons narrow the server's results in the browser
+  const visibleQuests = quests.filter(
+    (quest) => filter === "All" || quest.subject.toUpperCase().startsWith(filter)
+  );
 
-  function toggleJoin(quest: Quest) {
-    const alreadyJoined = joinedIds.includes(quest.id);
-    const updated = alreadyJoined
-      ? joinedQuests.filter((item) => item.id !== quest.id)
-      : [...joinedQuests, quest];
+  // Runs a join/leave/delete action, shows its message, then reloads the list
+  async function runAction(action: () => Promise<{ message: string }>) {
+    setNotice("");
+    try {
+      const result = await action();
+      setNotice(result.message);
+      setRefreshKey((key) => key + 1);
+    } catch (err) {
+      setNotice(errorMessage(err));
+    }
+  }
 
-    setJoinedQuests(updated);
-    localStorage.setItem("acceptedQuests", JSON.stringify(updated));
+  function renderAction(quest: Quest) {
+    // Your own quests are edited or deleted from the My Quests page
+    if (quest.author === userId) {
+      return <span className="quest-owner-label">Your Quest ✓</span>;
+    }
+    if (quest.members.includes(userId)) {
+      return (
+        <button type="button" className="quest-join-button joined" onClick={() => runAction(() => leaveQuest(quest._id))}>
+          Joined ✓ (Leave)
+        </button>
+      );
+    }
+    if (quest.joinRequests.includes(userId)) {
+      return <button type="button" className="quest-join-button joined" disabled>Requested ✓</button>;
+    }
+    const full = quest.status !== "open" || quest.members.length >= quest.maxMember;
+    return (
+      <button type="button" className="quest-join-button" disabled={full} onClick={() => runAction(() => joinQuest(quest._id))}>
+        {full ? "Full" : "Join Quest"}
+      </button>
+    );
   }
 
   return (
@@ -145,7 +108,7 @@ export default function FindQuestsPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by course, topic, or title"
+              placeholder="Search quests by title"
               aria-label="Search quests"
             />
           </label>
@@ -165,42 +128,40 @@ export default function FindQuestsPage() {
           </div>
         </section>
 
+        {notice && <p className="login-message" role="status">{notice}</p>}
+
         <section className="quest-list" aria-live="polite">
-          {visibleQuests.length ? visibleQuests.map((quest) => {
-            const joined = joinedIds.includes(quest.id);
-            return (
-              <article className="quest-card" key={quest.id}>
-                <span className="quest-pushpin" />
-                <div className="quest-card-top">
-                  <span className="quest-course">{quest.course}</span>
-                  <span className="quest-posted">{quest.posted}</span>
+          {loading ? (
+            <div className="no-quests"><p>Loading quests...</p></div>
+          ) : error ? (
+            <div className="no-quests"><h2>Couldn't load quests</h2><p>{error}</p></div>
+          ) : visibleQuests.length ? visibleQuests.map((quest) => (
+            <article className="quest-card" key={quest._id}>
+              <span className="quest-pushpin" />
+              <div className="quest-card-top">
+                <span className="quest-course">{quest.subject}</span>
+                <span className="quest-posted">{quest.author === userId ? "Your quest" : quest.status}</span>
+              </div>
+              <h2 className="quest-title">{quest.title}</h2>
+              {quest.description && <p className="quest-description">{quest.description}</p>}
+              <div className="quest-details">
+                <div className="quest-detail">
+                  <span>◷</span>
+                  <span>{formatDay(quest.day)}, {minutesToTime(quest.startTime)}–{minutesToTime(quest.endTime)}</span>
                 </div>
-                <h2 className="quest-title">{quest.title}</h2>
-                {quest.courseDescription && <p className="quest-course-description">{quest.courseDescription}</p>}
-                <p className="quest-description">{quest.description}</p>
-                <div className="quest-details">
-                  <div className="quest-detail"><span>◷</span><span>{quest.schedule}</span></div>
-                  <div className="quest-detail"><span>♧</span><span>{quest.location}</span></div>
+                <div className="quest-detail"><span>♧</span><span>{quest.location}</span></div>
+              </div>
+              <div className="quest-bottom">
+                <div className="quest-card-actions">
+                  <span className="quest-spots">{quest.members.length}/{quest.maxMember} members</span>
+                  {renderAction(quest)}
                 </div>
-                <div className="quest-bottom">
-                  {quest.reward && <p className="quest-reward"><span className="quest-reward-icon">🏆</span>{quest.reward}</p>}
-                  <div className="quest-card-actions">
-                    <span className="quest-spots">Max {quest.spots} people</span>
-                    <button
-                      type="button"
-                      className={`quest-join-button ${joined ? "joined" : ""}`}
-                      onClick={() => toggleJoin(quest)}
-                    >
-                      {joined ? "Joined ✓" : "Join Quest"}
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          }) : (
+              </div>
+            </article>
+          )) : (
             <div className="no-quests">
               <h2>No Quests Found</h2>
-              <p>Try another search or course filter.</p>
+              <p>Try another search, or post the first quest!</p>
             </div>
           )}
         </section>

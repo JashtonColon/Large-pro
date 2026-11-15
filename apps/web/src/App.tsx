@@ -12,6 +12,7 @@ import FindQuestsPage from "./pages/FindQuestsPage";
 import CreateQuestPage from "./pages/CreateQuestPage";
 import MyAppointmentsPage from "./pages/MyAppointmentsPage";
 import PasswordResetPage from "./pages/PasswordResetPage";
+import ProfileSetupPage from "./pages/ProfileSetupPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Shorthand: wrap a page so only logged-in users can see it
@@ -38,6 +39,8 @@ export default function App() {
 
         {/* Main Application (logged-in users only) */}
         <Route path="/dashboard" element={<Navigate to="/quests" replace />} />
+        {/* Profile setup saves to /api/profile, which needs a logged-in, verified user */}
+        <Route path="/profile-setup" element={privatePage(<ProfileSetupPage />)} />
         <Route path="/availability" element={privatePage(<AvailabilityPage />)} />
         <Route path="/courses" element={privatePage(<CoursesPage />)} />
         <Route path="/profile" element={privatePage(<ProfilePage />)} />
