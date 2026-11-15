@@ -11,9 +11,13 @@ import {
   reviewQuestJoinRequestController,
   leaveQuestController,
   getPartialMatchesController,
+  searchQuestsController,
 } from "../controllers/questController.js";
 
 const router = Router();
+
+// Optional subject and title query parameters; return at most 30 quests.
+router.get("/search", authMiddleware, searchQuestsController);
 
 // Match the authenticated user's courses and weekly availability.
 router.get("/matches", authMiddleware, getPartialMatchesController);

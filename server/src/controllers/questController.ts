@@ -10,6 +10,7 @@ import {
   reviewQuestJoinRequest,
   leaveQuest,
   getPartialMatches,
+  searchQuests,
   QuestError,
   type CreateQuestInput,
   type UpdateQuestInput,
@@ -40,6 +41,16 @@ function handleQuestError(
   }
   console.error("Quest error:", error);
   res.status(500).json({ message });
+}
+
+export async function searchQuestsController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    if (!req.userId) throw new QuestError(401, "Authentication required.");
+    const quests = await searchQuests(req.query.subject, req.query.title);
+    res.status(200).json({ quests });
+  } catch (error) {
+    handleQuestError(res, error, "Unable to search quests right now.");
+  }
 }
 
 export async function getPartialMatchesController(req: AuthenticatedRequest, res: Response): Promise<void> {

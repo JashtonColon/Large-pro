@@ -74,6 +74,23 @@ async function findQuest(questId: string) {
   return quest;
 }
 
+export async function searchQuests(subject: unknown = "", title: unknown = "") {
+  const filters: Record<string, RegExp> = {};
+  for (const [field, value] of [["subject", subject], ["title", title]] as const) {
+    if (typeof value !== "string") {
+      throw new QuestError(400, `${field} must be a string.`);
+    }
+    const text = value.trim();
+    if (!text) continue;
+
+    // Treat search text literally, including characters like +, ( and .
+    const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filters[field] = new RegExp(field === "subject" ? `^${escaped}$` : escaped, "i");
+  }
+
+  return Quest.find(filters).sort({ day: 1, startTime: 1, _id: 1 }).limit(30);
+}
+
 export async function getPartialMatches(userId: string) {
   const user = await User.findById(userId);
   if (!user) throw new QuestError(404, "User not found.");
