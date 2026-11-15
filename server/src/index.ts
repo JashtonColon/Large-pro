@@ -3,7 +3,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import passwordResetRoutes from "./routes/passwordResetRoutes.js";
 import emailVerificationRoutes from "./routes/emailVerificationRoutes.js";
-
+import questRoutes from "./routes/questRoutes.js";
 import authRoutes from './routes/authRoutes.js';
 
 const app = express();
@@ -19,6 +19,9 @@ app.use("/api/auth", emailVerificationRoutes);
 
 // Authentication routes
 app.use('/api/auth', authRoutes);
+
+//Quest routes
+app.use("/api/quests", questRoutes);
 
 // Start server & connect to MongoDB
 async function start() {
