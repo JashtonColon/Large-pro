@@ -17,7 +17,7 @@ function makeQuest(overrides = {}) {
   return new Quest({
     title: "Study group", subject: "COP4331", location: "Library",
     author: "507f1f77bcf86cd799439012",
-    day: new Date("2026-11-16T00:00:00Z"),
+    day: new Date("2099-11-16T00:00:00Z"),
     startTime: 600, endTime: 720, maxMember: 2,
     ...overrides,
   });
@@ -25,6 +25,7 @@ function makeQuest(overrides = {}) {
 
 function mockQuests(t: TestContext, quests: ReturnType<typeof makeQuest>[]) {
   return t.mock.method(Quest, "find", () => ({
+    select: async () => [],
     sort: () => ({ cursor: async function* () { yield* quests; } }),
   }));
 }
@@ -39,7 +40,7 @@ test("matches course codes regardless of case or whitespace and includes exact a
 test("requires the correct weekday and the entire quest to fit a single slot", async t => {
   t.mock.method(User, "findById", async () => ({ profile }));
   mockQuests(t, [
-    makeQuest({ day: new Date("2026-11-17T00:00:00Z") }),
+    makeQuest({ day: new Date("2099-11-17T00:00:00Z") }),
     makeQuest({ startTime: 599 }),
     makeQuest({ endTime: 721 }),
     makeQuest({ startTime: 720, endTime: 780 }),
@@ -52,7 +53,7 @@ test("checks all availability slots and supports Sunday", async t => {
     ...profile,
     availability: [...profile.availability, { dayOfWeek: 0, startMinute: 900, endMinute: 1020 }],
   } }));
-  const sunday = makeQuest({ day: new Date("2026-11-22T00:00:00Z"), startTime: 930, endTime: 1000 });
+  const sunday = makeQuest({ day: new Date("2099-11-22T00:00:00Z"), startTime: 930, endTime: 1000 });
   mockQuests(t, [sunday]);
   assert.deepEqual(await getPartialMatches(userId), [sunday]);
 });
@@ -68,7 +69,7 @@ test("only considers open quests with room that the user has not authored, joine
   t.mock.method(User, "findById", async () => ({ profile }));
   const find = mockQuests(t, []);
   await getPartialMatches(userId);
-  assert.deepEqual(find.mock.calls[0]?.arguments[0], {
+  assert.deepEqual(find.mock.calls.at(-1)?.arguments[0], {
     status: "open", author: { $ne: userId }, members: { $ne: userId },
     joinRequests: { $ne: userId },
     $expr: { $lt: [{ $size: "$members" }, "$maxMember"] },
@@ -104,7 +105,8 @@ test("endpoint returns matches for the authenticated user and rejects unauthenti
 
   await getPartialMatchesController({ userId } as AuthenticatedRequest, res);
   assert.equal(statusCode, 200);
-  assert.deepEqual(responseBody, { matches: [match] });
+  const { joinRequests, ...visibleQuest } = match.toObject();
+  assert.deepEqual(responseBody, { matches: [visibleQuest] });
   assert.equal(user.mock.calls[0]?.arguments[0], userId);
 
   await getPartialMatchesController({} as AuthenticatedRequest, res);

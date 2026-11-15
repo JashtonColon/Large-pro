@@ -6,13 +6,15 @@ import User from "../models/User.js";
 import { searchQuests, getPartialMatches, QuestError } from "../services/questService.js";
 import { searchQuestsController, getPartialMatchesController } from "../controllers/questController.js";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { matchesDiscoveryQuery } from "./helpers/discoveryQuery.js";
 
 const userId = "507f1f77bcf86cd799439011";
-function makeQuest(subject: string, startTime: number, endTime: number) {
+function makeQuest(subject: string, startTime: number, endTime: number, status: "open" | "full" | "closed" = "open") {
   return new Quest({
-    title: "Study group", subject, startTime, endTime,
+    title: "Study group", subject, startTime, endTime, status,
     location: "Library", author: "507f1f77bcf86cd799439012",
-    day: new Date("2026-11-16T00:00:00Z"), maxMember: 2,
+    day: new Date("2099-11-16T00:00:00Z"), maxMember: 2,
+    members: status === "full" ? ["507f1f77bcf86cd799439013", "507f1f77bcf86cd799439014"] : [],
   });
 }
 const quests = [
@@ -22,15 +24,23 @@ const quests = [
   makeQuest("COP4331", 660, 720),
 ];
 
-function mockResults(t: TestContext) {
+function mockResults(t: TestContext, candidates = quests) {
   t.mock.method(User, "findById", async () => ({ profile: {
-    courses: ["COP4331", "COP3503"],
+    courses: ["COP4331", "COP3503", "C++"],
     availability: [{ dayOfWeek: 1, startMinute: 480, endMinute: 1020 }],
   } }));
-  t.mock.method(Quest, "find", () => ({ sort: () => ({
-    limit: async () => quests,
-    cursor: async function* () { yield* quests; },
-  }) }));
+  t.mock.method(Quest, "find", (query: Parameters<typeof matchesDiscoveryQuery>[1]) => {
+    return {
+      select: async () => [],
+      sort: () => {
+        const results = candidates.filter(quest => matchesDiscoveryQuery(quest, query));
+        return {
+          limit: async (maximum: number) => results.slice(0, maximum),
+          cursor: async function* () { yield* results; },
+        };
+      },
+    };
+  });
 }
 
 for (const source of ["search", "matches"] as const) {
@@ -75,6 +85,45 @@ for (const source of ["search", "matches"] as const) {
     }
   });
 
+  test(`${source}: applies course and time filters before the 30-result limit`, async t => {
+    const matches = Array.from({ length: 35 }, () => makeQuest("COP3503", 600, 660));
+    mockResults(t, [
+      ...Array.from({ length: 40 }, () => makeQuest("COP4331", 600, 660)),
+      ...Array.from({ length: 40 }, () => makeQuest("COP3503", 540, 600)),
+      ...matches,
+    ]);
+    const filters = { course: "COP3503", startTime: 600, endTime: 660 };
+    const result = source === "search"
+      ? await searchQuests("", "", filters) : await getPartialMatches(userId, filters);
+    assert.deepEqual(result, matches.slice(0, 30));
+  });
+
+  test(`${source}: closed quests do not occupy the result limit`, async t => {
+    const open = Array.from({ length: 35 }, () => makeQuest("COP4331", 600, 660));
+    mockResults(t, [
+      ...Array.from({ length: 40 }, () => makeQuest("COP4331", 600, 660, "closed")),
+      ...open,
+    ]);
+    const result = source === "search" ? await searchQuests() : await getPartialMatches(userId);
+    assert.deepEqual(result, open.slice(0, 30));
+  });
+
+  test(`${source}: course filters treat regex characters literally and ignore whitespace`, async t => {
+    const match = makeQuest(" C + + ", 600, 660);
+    mockResults(t, [makeQuest("CCC", 600, 660), match]);
+    const filters = { course: "c ++" };
+    const result = source === "search"
+      ? await searchQuests("", "", filters) : await getPartialMatches(userId, filters);
+    assert.deepEqual(result, [match]);
+  });
+
+  test(`${source}: ${source === "search" ? "shows" : "excludes"} full quests`, async t => {
+    const full = makeQuest("COP4331", 600, 660, "full");
+    mockResults(t, [full]);
+    const result = source === "search" ? await searchQuests() : await getPartialMatches(userId);
+    assert.deepEqual(result, source === "search" ? [full] : []);
+  });
+
   test(`${source}: controller passes course and time filters to the service`, async t => {
     mockResults(t);
     let statusCode = 0;
@@ -87,6 +136,14 @@ for (const source of ["search", "matches"] as const) {
     const controller = source === "search" ? searchQuestsController : getPartialMatchesController;
     await controller(req, res);
     assert.equal(statusCode, 200);
-    assert.deepEqual(body, source === "search" ? { quests: [quests[1]] } : { matches: [quests[1]] });
+    const { joinRequests, ...visibleQuest } = quests[1].toObject();
+    assert.deepEqual(body, source === "search" ? { quests: [visibleQuest] } : { matches: [visibleQuest] });
   });
 }
+
+test("subject search and course filters must both match", async t => {
+  mockResults(t);
+  assert.deepEqual(await searchQuests("COP4331", "", { course: "COP3503" }), []);
+  assert.deepEqual(await searchQuests("COP4331", "", { course: "cop 4331" }),
+    [quests[0], quests[3]]);
+});

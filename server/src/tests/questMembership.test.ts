@@ -21,7 +21,7 @@ function makeQuest(overrides = {}) {
   return new Quest({
     _id: questId,
     title: "Study group", subject: "COP4331", location: "Library",
-    author: authorId, day: new Date("2026-11-16T00:00:00Z"),
+    author: authorId, day: new Date("2099-11-16T00:00:00Z"),
     startTime: 600, endTime: 660, maxMember: 2,
     ...overrides,
   });
@@ -52,7 +52,7 @@ test("conflicts check authored and joined quests on the same day with strict ove
     assert.deepEqual(args[0], {
       _id: { $ne: quest._id }, day: quest.day,
       startTime: { $lt: 660 }, endTime: { $gt: 600 },
-      $or: [{ author: userId }, { members: userId }],
+      $or: [{ author: { $in: [userId] } }, { members: { $in: [userId] } }],
     });
     return { _id: new mongoose.Types.ObjectId() };
   });
@@ -64,7 +64,7 @@ test("conflicts check authored and joined quests on the same day with strict ove
 test("authors, existing members, duplicate requests, closed and full quests cannot request to join", async t => {
   for (const overrides of [
     { author: userId }, { members: [userId] }, { joinRequests: [userId] },
-    { status: "closed" }, { maxMember: 1, members: [authorId] },
+    { status: "closed", day: new Date("2000-01-03T00:00:00Z") }, { maxMember: 1, members: [authorId] },
   ]) {
     const find = t.mock.method(Quest, "findById", async () => makeQuest(overrides));
     await assert.rejects(requestToJoinQuest(questId, userId), hasStatus(409));
@@ -89,15 +89,17 @@ test("author receives pending users' names", async t => {
 });
 
 test("approval adds membership and removes the request atomically with a capacity check", async t => {
-  t.mock.method(Quest, "findById", async () => makeQuest({ joinRequests: [userId] }));
+  const quest = makeQuest({ joinRequests: [userId] });
+  t.mock.method(Quest, "findById", async () => quest);
   t.mock.method(Quest, "exists", async () => null);
   t.mock.method(Quest, "findOneAndUpdate", async (...args: unknown[]) => {
     assert.deepEqual(args[0], {
       _id: questId, author: authorId, joinRequests: userId,
-      status: "open", members: { $ne: userId },
+      day: quest.day, startTime: quest.startTime, endTime: quest.endTime, maxMember: quest.maxMember,
+      status: "open", members: { $eq: quest.members, $ne: userId },
       $expr: { $lt: [{ $size: "$members" }, "$maxMember"] },
     });
-    assert.deepEqual(args[1], { $pull: { joinRequests: userId }, $addToSet: { members: userId } });
+    assert.deepEqual(args[1], { $pull: { joinRequests: userId }, $addToSet: { members: userId }, $set: { status: "open" } });
     return makeQuest({ members: [userId] });
   });
   const result = await reviewQuestJoinRequest(questId, authorId, userId, "accept");
@@ -113,8 +115,19 @@ test("approval rechecks time conflicts and leaves conflicting requests pending",
   assert.equal(update.mock.callCount(), 0);
 });
 
+test("accepting the last member saves full status with the membership change", async t => {
+  const quest = makeQuest({ maxMember: 1, joinRequests: [userId] });
+  t.mock.method(Quest, "findById", async () => quest);
+  t.mock.method(Quest, "exists", async () => null);
+  t.mock.method(Quest, "findOneAndUpdate", async (...args: unknown[]) => {
+    assert.equal((args[1] as { $set: { status: string } }).$set.status, "full");
+    return makeQuest({ maxMember: 1, members: [userId], status: "full" });
+  });
+  assert.equal((await reviewQuestJoinRequest(questId, authorId, userId, "accept")).status, "full");
+});
+
 test("closed or full quests cannot approve a pending request", async t => {
-  for (const overrides of [{ status: "closed" }, { maxMember: 1, members: [authorId] }]) {
+  for (const overrides of [{ status: "closed", day: new Date("2000-01-03T00:00:00Z") }, { maxMember: 1, members: [authorId] }]) {
     const find = t.mock.method(Quest, "findById", async () => makeQuest({ joinRequests: [userId], ...overrides }));
     await assert.rejects(reviewQuestJoinRequest(questId, authorId, userId, "accept"), hasStatus(409));
     find.mock.restore();
@@ -122,10 +135,10 @@ test("closed or full quests cannot approve a pending request", async t => {
 });
 
 test("denial removes the pending request even when the quest is closed", async t => {
-  t.mock.method(Quest, "findById", async () => makeQuest({ joinRequests: [userId], status: "closed" }));
+  t.mock.method(Quest, "findById", async () => makeQuest({ joinRequests: [userId], status: "closed", day: new Date("2000-01-03T00:00:00Z") }));
   const conflict = t.mock.method(Quest, "exists", async () => null);
   t.mock.method(Quest, "findOneAndUpdate", async (...args: unknown[]) => {
-    assert.deepEqual(args[1], { $pull: { joinRequests: userId } });
+    assert.deepEqual(args[1], { $pull: { joinRequests: userId }, $set: { status: "closed" } });
     return makeQuest();
   });
   const result = await reviewQuestJoinRequest(questId, authorId, userId, "deny");
@@ -135,10 +148,14 @@ test("denial removes the pending request even when the quest is closed", async t
 });
 
 test("leaving removes the authenticated member", async t => {
-  t.mock.method(Quest, "findById", async () => makeQuest({ members: [userId] }));
+  const quest = makeQuest({ members: [userId] });
+  t.mock.method(Quest, "findById", async () => quest);
   t.mock.method(Quest, "findOneAndUpdate", async (...args: unknown[]) => {
-    assert.deepEqual(args[0], { _id: questId, members: userId });
-    assert.deepEqual(args[1], { $pull: { members: userId } });
+    assert.deepEqual(args[0], {
+      _id: questId, day: quest.day, startTime: quest.startTime, endTime: quest.endTime,
+      members: quest.members, maxMember: quest.maxMember,
+    });
+    assert.deepEqual(args[1], { $pull: { members: userId }, $set: { status: "open" } });
     return makeQuest();
   });
   assert.equal((await leaveQuest(questId, userId)).members.length, 0);
@@ -151,6 +168,21 @@ test("nonmembers cannot leave and nonexistent requests cannot be reviewed", asyn
   await assert.rejects(leaveQuest(questId, userId), hasStatus(409));
   await assert.rejects(reviewQuestJoinRequest(questId, authorId, userId, "accept"), hasStatus(404));
 });
+
+for (const ended of [false, true]) {
+  test(`leaving a full quest ${ended ? "keeps an ended quest closed" : "reopens it"}`, async t => {
+    const quest = makeQuest({
+      maxMember: 1, members: [userId], status: "full",
+      ...(ended ? { day: new Date("2000-01-03T00:00:00Z") } : {}),
+    });
+    t.mock.method(Quest, "findById", async () => quest);
+    t.mock.method(Quest, "findOneAndUpdate", async (...args: unknown[]) => {
+      assert.equal((args[1] as { $set: { status: string } }).$set.status, ended ? "closed" : "open");
+      return new Quest({ ...quest.toObject(), members: [], status: ended ? "closed" : "open" });
+    });
+    assert.equal((await leaveQuest(questId, userId)).status, ended ? "closed" : "open");
+  });
+}
 
 test("invalid and missing quests or request users return client errors", async t => {
   await assert.rejects(requestToJoinQuest("bad-id", userId), hasStatus(400));
