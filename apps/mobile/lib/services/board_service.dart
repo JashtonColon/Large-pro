@@ -35,6 +35,7 @@ class Bounty {
     required this.requestIds,
     required this.isOpen,
     required this.postedAgo,
+    this.requestedByServer = false,
   });
 
   final String id;
@@ -53,6 +54,11 @@ class Bounty {
   final List<String> requestIds;
   final bool isOpen;
   final String postedAgo;
+
+  /// The server only shows the joinRequests list to the quest's author, so
+  /// for everyone else we use a flag from the server if it sends one, plus
+  /// the requests made on this phone (BoardService.requestedIds).
+  final bool requestedByServer;
 
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -81,7 +87,11 @@ class Bounty {
   String? get _me => AuthService.currentUserId;
   bool get isMine => _me != null && authorId == _me;
   bool get joined => _me != null && memberIds.contains(_me);
-  bool get requested => _me != null && requestIds.contains(_me);
+  bool get requested =>
+      !joined &&
+      (requestedByServer ||
+          (_me != null && requestIds.contains(_me)) ||
+          BoardService.requestedIds.contains(id));
   bool get isFull => memberIds.length >= maxMember;
 
   /// True for sessions earlier than today.
@@ -120,6 +130,7 @@ class Bounty {
       requestIds: ids(j['joinRequests']),
       isOpen: (j['status'] ?? 'open') == 'open',
       postedAgo: created == null ? '' : _ago(created),
+      requestedByServer: j['requestedByMe'] == true || j['hasRequested'] == true,
     );
   }
 
@@ -148,6 +159,10 @@ class JoinRequest {
 }
 
 class BoardService {
+  /// Quests this user asked to join (the server hides joinRequests from
+  /// non-authors, so the phone keeps track during the session).
+  static final Set<String> requestedIds = {};
+
   static List<Bounty> _parse(dynamic list, {bool includePast = false}) => [
         for (final q in (list as List? ?? const []))
           if (q is Map<String, dynamic>) Bounty.fromJson(q),
@@ -195,12 +210,22 @@ class BoardService {
   }
 
   static Future<Bounty> requestToJoin(String questId) async {
-    final data = await Api.post('/api/quests/$questId/join');
+    Map<String, dynamic> data;
+    try {
+      data = await Api.post('/api/quests/$questId/join');
+    } on ApiException catch (e) {
+      // Asked before (e.g. on another device): remember it so the button
+      // shows "Requested" instead of offering to join again.
+      if (e.message.contains('already have a pending')) requestedIds.add(questId);
+      rethrow;
+    }
+    requestedIds.add(questId);
     return Bounty.fromJson(data['quest'] as Map<String, dynamic>);
   }
 
   static Future<Bounty> leave(String questId) async {
     final data = await Api.post('/api/quests/$questId/leave');
+    requestedIds.remove(questId);
     return Bounty.fromJson(data['quest'] as Map<String, dynamic>);
   }
 

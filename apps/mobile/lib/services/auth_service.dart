@@ -8,6 +8,7 @@
 //   forgot password -> POST /api/auth/forgot-password    (emails a reset link)
 
 import 'api_client.dart';
+import 'board_service.dart';
 import 'profile_service.dart';
 
 export 'api_client.dart' show ApiException;
@@ -75,6 +76,7 @@ class AuthService {
   }
 
   static void logout() {
+    BoardService.requestedIds.clear();
     Api.token = null;
     currentUserId = null;
     currentUserEmail = null;
