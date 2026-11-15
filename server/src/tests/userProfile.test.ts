@@ -19,6 +19,7 @@ test('major is required but courses, availability, and gender may be omitted', a
     }
     const user = new User({ ...account, profile: { major: 'Computer Science' } });
     await user.validate();
+    assert.ok(user.profile);
     assert.deepEqual(Array.from(user.profile.courses), []);
     assert.equal(user.profile.availability.length, 0);
     assert.equal(user.profile.gender, undefined);
@@ -31,6 +32,7 @@ test('profile normalizes course codes and accepts weekly availability without ge
         availability: [{ dayOfWeek: 1, startMinute: 600, endMinute: 720 }],
     } });
     await user.validate();
+    assert.ok(user.profile);
     assert.equal(user.profile.major, 'Computer Science');
     assert.equal(user.profile.gender, undefined);
     assert.deepEqual(Array.from(user.profile.courses), ['COP4331', 'COP3503']);
