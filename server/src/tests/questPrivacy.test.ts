@@ -18,7 +18,7 @@ const applicantId = new mongoose.Types.ObjectId().toString();
 function makeQuest(overrides = {}) {
   return new Quest({
     title: "Study group", subject: "COP4331", location: "Library",
-    author: authorId, day: new Date("2026-11-16T00:00:00Z"),
+    author: authorId, day: new Date("2099-11-16T00:00:00Z"),
     startTime: 600, endTime: 660, maxMember: 3, joinRequests: [applicantId],
     ...overrides,
   });
@@ -36,7 +36,7 @@ function captureResponse() {
 test("search shows pending requests only for the viewer's own quests", async t => {
   const own = makeQuest();
   const other = makeQuest({ author: new mongoose.Types.ObjectId(), members: [authorId] });
-  t.mock.method(Quest, "find", () => ({ sort: () => ({ limit: async () => [own, other] }) }));
+  t.mock.method(Quest, "find", () => ({ select: async () => [], sort: () => ({ limit: async () => [own, other] }) }));
   const { res, result } = captureResponse();
 
   await searchQuestsController({ userId: authorId, query: {} } as AuthenticatedRequest, res);
@@ -52,7 +52,7 @@ test("partial matching does not reveal other users' pending requests", async t =
   t.mock.method(User, "findById", async () => ({ profile: {
     courses: ["COP4331"], availability: [{ dayOfWeek: 1, startMinute: 600, endMinute: 720 }],
   } }));
-  t.mock.method(Quest, "find", () => ({ sort: () => ({ cursor: async function* () { yield quest; } }) }));
+  t.mock.method(Quest, "find", () => ({ select: async () => [], sort: () => ({ cursor: async function* () { yield quest; } }) }));
   const { res, result } = captureResponse();
 
   await getPartialMatchesController({ userId: memberId, query: {} } as AuthenticatedRequest, res);
@@ -83,7 +83,7 @@ for (const action of ["join", "leave"] as const) {
 for (const [action, controller, body] of [
   ["create", createQuestController, {
     title: "Study group", subject: "COP4331", location: "Library",
-    day: "11/16/2026", startTime: "10:00 AM", endTime: "11:00 AM", maxMember: 3,
+    day: "11/16/2099", startTime: "10:00 AM", endTime: "11:00 AM", maxMember: 3,
   }],
   ["edit", updateQuestController, { title: "Changed" }],
   ["review", reviewQuestJoinRequestController, { decision: "deny" }],

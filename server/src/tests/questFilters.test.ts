@@ -9,11 +9,12 @@ import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import { matchesDiscoveryQuery } from "./helpers/discoveryQuery.js";
 
 const userId = "507f1f77bcf86cd799439011";
-function makeQuest(subject: string, startTime: number, endTime: number, status: "open" | "closed" = "open") {
+function makeQuest(subject: string, startTime: number, endTime: number, status: "open" | "full" | "closed" = "open") {
   return new Quest({
     title: "Study group", subject, startTime, endTime, status,
     location: "Library", author: "507f1f77bcf86cd799439012",
-    day: new Date("2026-11-16T00:00:00Z"), maxMember: 2,
+    day: new Date("2099-11-16T00:00:00Z"), maxMember: 2,
+    members: status === "full" ? ["507f1f77bcf86cd799439013", "507f1f77bcf86cd799439014"] : [],
   });
 }
 const quests = [
@@ -29,11 +30,16 @@ function mockResults(t: TestContext, candidates = quests) {
     availability: [{ dayOfWeek: 1, startMinute: 480, endMinute: 1020 }],
   } }));
   t.mock.method(Quest, "find", (query: Parameters<typeof matchesDiscoveryQuery>[1]) => {
-    const results = candidates.filter(quest => matchesDiscoveryQuery(quest, query));
-    return { sort: () => ({
-      limit: async (maximum: number) => results.slice(0, maximum),
-      cursor: async function* () { yield* results; },
-    }) };
+    return {
+      select: async () => [],
+      sort: () => {
+        const results = candidates.filter(quest => matchesDiscoveryQuery(quest, query));
+        return {
+          limit: async (maximum: number) => results.slice(0, maximum),
+          cursor: async function* () { yield* results; },
+        };
+      },
+    };
   });
 }
 
@@ -109,6 +115,13 @@ for (const source of ["search", "matches"] as const) {
     const result = source === "search"
       ? await searchQuests("", "", filters) : await getPartialMatches(userId, filters);
     assert.deepEqual(result, [match]);
+  });
+
+  test(`${source}: ${source === "search" ? "shows" : "excludes"} full quests`, async t => {
+    const full = makeQuest("COP4331", 600, 660, "full");
+    mockResults(t, [full]);
+    const result = source === "search" ? await searchQuests() : await getPartialMatches(userId);
+    assert.deepEqual(result, source === "search" ? [full] : []);
   });
 
   test(`${source}: controller passes course and time filters to the service`, async t => {

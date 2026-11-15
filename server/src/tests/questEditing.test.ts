@@ -14,7 +14,7 @@ const applicantId = new mongoose.Types.ObjectId().toString();
 function makeQuest() {
   return new Quest({
     title: "Study group", subject: "COP4331", location: "Library",
-    author: authorId, day: new Date("2026-11-16T00:00:00Z"),
+    author: authorId, day: new Date("2099-11-16T00:00:00Z"),
     startTime: 600, endTime: 660, maxMember: 3,
     members: [memberId], joinRequests: [applicantId],
   });
@@ -50,6 +50,7 @@ test("capacity may equal membership without checking unchanged schedules", async
   const result = await updateQuest(quest.id, authorId, { maxMember: 1 });
   assert.equal(result.maxMember, 1);
   assert.equal(result.members.length, 1);
+  assert.equal(result.status, "full");
   assert.equal(check.mock.callCount(), 0);
 });
 
@@ -71,7 +72,7 @@ test("rescheduling checks authored and joined quests for the author and accepted
 test("a date-only edit uses the new day and existing time boundaries", async t => {
   const quest = makeQuest();
   const { check } = mockEdit(t, quest);
-  const day = new Date("2026-11-17T00:00:00Z");
+  const day = new Date("2099-11-17T00:00:00Z");
 
   const result = await updateQuest(quest.id, authorId, { day });
   assert.equal(result.day.getTime(), day.getTime());
@@ -91,6 +92,21 @@ test("valid rescheduling preserves members and pending requests", async t => {
   assert.equal(result.endTime, 720);
   assert.deepEqual(result.members.map(String), [memberId]);
   assert.deepEqual(result.joinRequests.map(String), [applicantId]);
+});
+
+test("increasing capacity reopens a full quest", async t => {
+  const quest = makeQuest();
+  quest.maxMember = 1;
+  mockEdit(t, quest);
+  const result = await updateQuest(quest.id, authorId, { maxMember: 2 });
+  assert.equal(result.status, "open");
+});
+
+test("moving a quest to an ended date closes it", async t => {
+  const quest = makeQuest();
+  mockEdit(t, quest);
+  const result = await updateQuest(quest.id, authorId, { day: new Date("2000-01-03T00:00:00Z") });
+  assert.equal(result.status, "closed");
 });
 
 test("an edit is rejected if membership or schedule changes after validation", async t => {

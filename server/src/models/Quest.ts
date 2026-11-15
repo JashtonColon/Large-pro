@@ -13,7 +13,7 @@ export interface IQuest extends Document {
   members: mongoose.Types.ObjectId[];
   joinRequests: mongoose.Types.ObjectId[];
   maxMember: number;
-  status: "open" | "closed";
+  status: "open" | "full" | "closed";
 }
 
 const questSchema = new Schema<IQuest>({
@@ -43,7 +43,7 @@ const questSchema = new Schema<IQuest>({
   maxMember: { type: Number, required: true, min: 1, validate: Number.isInteger },
   status: {
     type: String,
-    enum: ["open", "closed"],
+    enum: ["open", "full", "closed"],
     default: "open"
   }
 }, { timestamps: true });

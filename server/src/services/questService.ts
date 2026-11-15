@@ -2,6 +2,27 @@ import mongoose from "mongoose";
 import Quest, { type IQuest } from "../models/Quest.js";
 import User from "../models/User.js";
 import { normalizeCourse } from "../utils/courseUtils.js";
+import { getQuestStatus } from "../utils/questStatus.js";
+
+export async function refreshQuestStatuses() {
+  const now = new Date();
+  const quests = await Quest.find().select("day startTime endTime members maxMember status");
+  const updates = quests.flatMap(quest => {
+    const status = getQuestStatus(quest, quest.members.length, now);
+    return status === quest.status ? [] : [{
+      updateOne: {
+        filter: { _id: quest._id, ...questState(quest) },
+        update: { $set: { status } },
+      },
+    }];
+  });
+  if (updates.length) await Quest.bulkWrite(updates, { timestamps: false });
+}
+
+function questState(quest: IQuest) {
+  const { day, startTime, endTime, members, maxMember } = quest;
+  return { day, startTime, endTime, members, maxMember };
+}
 
 
 export interface CreateQuestInput {
@@ -38,7 +59,7 @@ export async function createQuest(
     endTime: input.endTime,
     members: [],
     maxMember: input.maxMember,
-    status: "open",
+    status: getQuestStatus(input, 0),
   });
 
   return quest;
@@ -73,6 +94,7 @@ async function findQuest(questId: string) {
   }
   const quest = await Quest.findById(questId);
   if (!quest) throw new QuestError(404, "Quest not found.");
+  quest.status = getQuestStatus(quest, quest.members.length);
   return quest;
 }
 
@@ -114,7 +136,9 @@ function escapeRegex(text: string): string {
 
 function buildQuestQuery(input: QuestFilterInput): mongoose.QueryFilter<IQuest> {
   const { course, startTime, endTime } = parseQuestFilters(input);
-  const query: mongoose.QueryFilter<IQuest> = { status: "open" };
+  const query: mongoose.QueryFilter<IQuest> = {
+    status: { $ne: "closed" },
+  };
 
   if (course) {
     // Match normalized course codes even when stored subjects contain spaces.
@@ -147,6 +171,7 @@ export async function searchQuests(
   }
 
   // Keep subject search and course filtering as independent conditions.
+  await refreshQuestStatuses();
   return Quest.find({ $and: [query, filters] }).sort({ day: 1, startTime: 1, _id: 1 }).limit(30);
 }
 
@@ -158,10 +183,12 @@ export async function getPartialMatches(userId: string, filterInput: QuestFilter
   const { courses = [], availability = [] } = user.profile ?? {};
   if (!courses.length || !availability.length) return [];
 
+  await refreshQuestStatuses();
   const courseCodes = new Set(courses.map(normalizeCourse));
   const matches: IQuest[] = [];
   const quests = Quest.find({
     ...query,
+    status: "open",
     author: { $ne: userId },
     members: { $ne: userId },
     joinRequests: { $ne: userId },
@@ -274,14 +301,16 @@ export async function reviewQuestJoinRequest(
       _id: questId,
       author: authorId,
       joinRequests: userId,
+      ...questState(quest),
       ...(decision === "accept" ? {
         status: "open",
-        members: { $ne: userId },
+        members: { $eq: quest.members, $ne: userId },
         $expr: { $lt: [{ $size: "$members" }, "$maxMember"] },
       } : {}),
     },
     {
       $pull: { joinRequests: userId },
+      $set: { status: getQuestStatus(quest, quest.members.length + (decision === "accept" ? 1 : 0)) },
       ...(decision === "accept" ? { $addToSet: { members: userId } } : {}),
     },
     { new: true }
@@ -295,12 +324,18 @@ export async function leaveQuest(questId: string, userId: string) {
   if (quest.author.toString() === userId) {
     throw new QuestError(403, "The author cannot leave their own quest.");
   }
+  if (!quest.members.some(id => id.toString() === userId)) {
+    throw new QuestError(409, "You are not a member of this quest.");
+  }
   const updated = await Quest.findOneAndUpdate(
-    { _id: questId, members: userId },
-    { $pull: { members: userId } },
+    { _id: questId, ...questState(quest) },
+    {
+      $pull: { members: userId },
+      $set: { status: getQuestStatus(quest, quest.members.length - 1) },
+    },
     { new: true }
   );
-  if (!updated) throw new QuestError(409, "You are not a member of this quest.");
+  if (!updated) throw new QuestError(409, "Quest changed. Please try again.");
   return updated;
 }
 
@@ -340,13 +375,12 @@ export async function updateQuest(
     {
       _id: questId,
       author: userId,
-      day: quest.day,
-      startTime: quest.startTime,
-      endTime: quest.endTime,
-      members: quest.members,
-      maxMember: quest.maxMember,
+      ...questState(quest),
     },
-    { $set: input },
+    { $set: {
+      ...input,
+      status: getQuestStatus({ ...schedule, maxMember: input.maxMember ?? quest.maxMember }, quest.members.length),
+    } },
     { new: true, runValidators: true }
   );
   if (!updated) throw new QuestError(409, "Quest changed. Please try again.");

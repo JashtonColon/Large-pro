@@ -22,9 +22,11 @@ import type {
 
 import { timeToMinutes } from "../utils/timeUtils.js";
 import type { IQuest } from "../models/Quest.js";
+import { getQuestStatus } from "../utils/questStatus.js";
 
 function toQuestResponse(quest: IQuest, viewerId: string) {
   const { joinRequests, ...fields } = quest.toObject();
+  fields.status = getQuestStatus(quest, quest.members.length);
   return quest.author.toString() === viewerId ? { ...fields, joinRequests } : fields;
 }
 

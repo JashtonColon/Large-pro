@@ -6,6 +6,9 @@ import emailVerificationRoutes from "./routes/emailVerificationRoutes.js";
 import questRoutes from "./routes/questRoutes.js";
 import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
+import { refreshQuestStatuses } from './services/questService.js';
+
+process.env.TZ = 'America/New_York';
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
@@ -33,6 +36,11 @@ async function start() {
 
   await mongoose.connect(process.env.MONGODB_URI);
   console.log('Connected to MongoDB');
+
+  await refreshQuestStatuses();
+  setInterval(() => {
+    refreshQuestStatuses().catch(error => console.error('Quest status refresh failed:', error));
+  }, 60_000).unref();
 
   app.listen(PORT, () => {
     console.log(`Study Buddy API listening on port ${PORT}`);
