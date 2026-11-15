@@ -86,7 +86,6 @@ const UserSchema: Schema = new Schema<IUser>(
         },
         profile: {
             type: UserProfileSchema,
-            default: () => ({}),
         },
     },
     {
