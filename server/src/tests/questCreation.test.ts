@@ -20,7 +20,7 @@ test("creation rejects overlaps with authored or joined quests without saving", 
       day: input.day,
       startTime: { $lt: input.endTime },
       endTime: { $gt: input.startTime },
-      $or: [{ author: authorId }, { members: authorId }],
+      $or: [{ author: { $in: [authorId] } }, { members: { $in: [authorId] } }],
     });
     return { _id: new mongoose.Types.ObjectId() };
   });
@@ -58,6 +58,6 @@ test("the creation endpoint returns HTTP 409 for a schedule conflict", async t =
 
   await createQuestController(req, res);
   assert.equal(statusCode, 409);
-  assert.deepEqual(responseBody, { message: "This quest conflicts with another quest in your schedule." });
+  assert.deepEqual(responseBody, { message: "This quest conflicts with another quest in an attendee's schedule." });
   assert.equal(create.mock.callCount(), 0);
 });

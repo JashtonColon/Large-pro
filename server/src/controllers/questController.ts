@@ -21,6 +21,12 @@ import type {
 } from "../middleware/authMiddleware.js";
 
 import { timeToMinutes } from "../utils/timeUtils.js";
+import type { IQuest } from "../models/Quest.js";
+
+function toQuestResponse(quest: IQuest, viewerId: string) {
+  const { joinRequests, ...fields } = quest.toObject();
+  return quest.author.toString() === viewerId ? { ...fields, joinRequests } : fields;
+}
 
 function getQuestRequest(req: AuthenticatedRequest) {
   if (!req.userId) throw new QuestError(401, "Authentication required.");
@@ -45,9 +51,10 @@ function handleQuestError(
 
 export async function searchQuestsController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    if (!req.userId) throw new QuestError(401, "Authentication required.");
+    const userId = req.userId;
+    if (!userId) throw new QuestError(401, "Authentication required.");
     const quests = await searchQuests(req.query.subject, req.query.title, req.query);
-    res.status(200).json({ quests });
+    res.status(200).json({ quests: quests.map(quest => toQuestResponse(quest, userId)) });
   } catch (error) {
     handleQuestError(res, error, "Unable to search quests right now.");
   }
@@ -55,9 +62,10 @@ export async function searchQuestsController(req: AuthenticatedRequest, res: Res
 
 export async function getPartialMatchesController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    if (!req.userId) throw new QuestError(401, "Authentication required.");
-    const matches = await getPartialMatches(req.userId, req.query);
-    res.status(200).json({ matches });
+    const userId = req.userId;
+    if (!userId) throw new QuestError(401, "Authentication required.");
+    const matches = await getPartialMatches(userId, req.query);
+    res.status(200).json({ matches: matches.map(quest => toQuestResponse(quest, userId)) });
   } catch (error) {
     handleQuestError(res, error, "Unable to retrieve quest matches right now.");
   }
@@ -67,7 +75,10 @@ export async function joinQuestController(req: AuthenticatedRequest, res: Respon
   try {
     const { questId, userId } = getQuestRequest(req);
     const quest = await requestToJoinQuest(questId, userId);
-    res.status(201).json({ message: "Join request sent to the quest author.", quest });
+    res.status(201).json({
+      message: "Join request sent to the quest author.",
+      quest: toQuestResponse(quest, userId),
+    });
   } catch (error) {
     handleQuestError(res, error);
   }
@@ -97,7 +108,7 @@ export async function reviewQuestJoinRequestController(req: AuthenticatedRequest
     const quest = await reviewQuestJoinRequest(questId, userId, req.params.userId, decision);
     res.status(200).json({
       message: decision === "accept" ? "Join request accepted." : "Join request denied.",
-      quest,
+      quest: toQuestResponse(quest, userId),
     });
   } catch (error) {
     handleQuestError(res, error);
@@ -108,7 +119,7 @@ export async function leaveQuestController(req: AuthenticatedRequest, res: Respo
   try {
     const { questId, userId } = getQuestRequest(req);
     const quest = await leaveQuest(questId, userId);
-    res.status(200).json({ message: "You have left the quest.", quest });
+    res.status(200).json({ message: "You have left the quest.", quest: toQuestResponse(quest, userId) });
   } catch (error) {
     handleQuestError(res, error);
   }
@@ -247,7 +258,7 @@ export async function createQuestController(
 
     res.status(201).json({
       message: "Quest created successfully.",
-      quest,
+      quest: toQuestResponse(quest, authorId),
     });
 
   } catch (error) {
@@ -418,7 +429,7 @@ export async function updateQuestController(
 
     res.status(200).json({
       message: "Quest updated successfully.",
-      quest,
+      quest: toQuestResponse(quest, userId),
     });
   } catch (error) {
     handleQuestError(res, error, "Unable to update quest right now.");

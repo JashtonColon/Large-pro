@@ -24,7 +24,7 @@ export async function createQuest(
     throw new Error("Invalid author ID");
   }
 
-  await checkTimeConflict(input, authorId);
+  await checkTimeConflict(input, [authorId]);
 
   // Create and save the quest in MongoDB
   const quest = await Quest.create({
@@ -192,17 +192,17 @@ function requireAuthor(quest: IQuest, userId: string) {
 
 async function checkTimeConflict(
   quest: Pick<IQuest, "day" | "startTime" | "endTime"> & { _id?: IQuest["_id"] },
-  userId: string
+  userIds: string[]
 ) {
   const conflict = await Quest.exists({
     ...(quest._id ? { _id: { $ne: quest._id } } : {}),
     day: quest.day,
     startTime: { $lt: quest.endTime },
     endTime: { $gt: quest.startTime },
-    $or: [{ author: userId }, { members: userId }],
+    $or: [{ author: { $in: userIds } }, { members: { $in: userIds } }],
   });
   if (conflict) {
-    throw new QuestError(409, "This quest conflicts with another quest in your schedule.");
+    throw new QuestError(409, "This quest conflicts with another quest in an attendee's schedule.");
   }
 }
 
@@ -224,7 +224,7 @@ export async function requestToJoinQuest(questId: string, userId: string) {
     throw new QuestError(409, "You already have a pending join request.");
   }
   requireOpenQuest(quest);
-  await checkTimeConflict(quest, userId);
+  await checkTimeConflict(quest, [userId]);
 
   const updated = await Quest.findOneAndUpdate(
     {
@@ -265,7 +265,7 @@ export async function reviewQuestJoinRequest(
 
   if (decision === "accept") {
     requireOpenQuest(quest);
-    await checkTimeConflict(quest, userId);
+    await checkTimeConflict(quest, [userId]);
   }
 
   // Remove the request and add the member together, checking capacity again.
@@ -317,23 +317,40 @@ export async function updateQuest(
     throw new QuestError(403, "You cannot edit another user's quest.");
   }
 
-  
-  // Update only the fields provided
-  Object.assign(quest, input);
-
-  // Ensure the quest ends after it starts
-  if (quest.endTime <= quest.startTime) {
-    throw new QuestError(
-      400,
-      "End time must be after start time."
-    );
+  const schedule = {
+    _id: quest._id,
+    day: input.day ?? quest.day,
+    startTime: input.startTime ?? quest.startTime,
+    endTime: input.endTime ?? quest.endTime,
+  };
+  if (schedule.endTime <= schedule.startTime) {
+    throw new QuestError(400, "End time must be after start time.");
   }
 
-  // Save the updated quest
-  await quest.save();
+  if ((input.maxMember ?? quest.maxMember) < quest.members.length) {
+    throw new QuestError(409, "maxMember cannot be lower than the number of existing members.");
+  }
 
+  if (input.day !== undefined || input.startTime !== undefined || input.endTime !== undefined) {
+    await checkTimeConflict(schedule, [userId, ...quest.members.map(id => id.toString())]);
+  }
 
-  return quest;
+  // Save only if the schedule, membership, and capacity we validated are still current.
+  const updated = await Quest.findOneAndUpdate(
+    {
+      _id: questId,
+      author: userId,
+      day: quest.day,
+      startTime: quest.startTime,
+      endTime: quest.endTime,
+      members: quest.members,
+      maxMember: quest.maxMember,
+    },
+    { $set: input },
+    { new: true, runValidators: true }
+  );
+  if (!updated) throw new QuestError(409, "Quest changed. Please try again.");
+  return updated;
 }
 
 // Delete an existing quest

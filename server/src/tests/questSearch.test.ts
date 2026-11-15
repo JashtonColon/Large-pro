@@ -55,7 +55,8 @@ test("search rejects arrays and objects instead of treating them as query operat
 });
 
 test("controller returns quests, validates search input, and requires authentication", async t => {
-  const find = t.mock.method(Quest, "find", () => ({ sort: () => ({ limit: async () => quests }) }));
+  const results = quests.map(quest => new Quest({ ...quest, author: "507f1f77bcf86cd799439011" }));
+  const find = t.mock.method(Quest, "find", () => ({ sort: () => ({ limit: async () => results }) }));
   let statusCode = 0;
   let body: unknown;
   const res = {
@@ -66,7 +67,10 @@ test("controller returns quests, validates search input, and requires authentica
 
   await searchQuestsController(req, res);
   assert.equal(statusCode, 200);
-  assert.deepEqual(body, { quests });
+  assert.deepEqual(body, { quests: results.map(quest => {
+    const { joinRequests, ...fields } = quest.toObject();
+    return fields;
+  }) });
   const filters = find.mock.calls[0]?.arguments[0] as unknown as Parameters<typeof matchesDiscoveryQuery>[1];
   assert.equal(matchesDiscoveryQuery(quests[0]!, filters), true);
   assert.equal(matchesDiscoveryQuery(quests[1]!, filters), false);

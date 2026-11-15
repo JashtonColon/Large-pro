@@ -52,7 +52,7 @@ test("conflicts check authored and joined quests on the same day with strict ove
     assert.deepEqual(args[0], {
       _id: { $ne: quest._id }, day: quest.day,
       startTime: { $lt: 660 }, endTime: { $gt: 600 },
-      $or: [{ author: userId }, { members: userId }],
+      $or: [{ author: { $in: [userId] } }, { members: { $in: [userId] } }],
     });
     return { _id: new mongoose.Types.ObjectId() };
   });

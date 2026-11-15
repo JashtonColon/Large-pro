@@ -123,7 +123,8 @@ for (const source of ["search", "matches"] as const) {
     const controller = source === "search" ? searchQuestsController : getPartialMatchesController;
     await controller(req, res);
     assert.equal(statusCode, 200);
-    assert.deepEqual(body, source === "search" ? { quests: [quests[1]] } : { matches: [quests[1]] });
+    const { joinRequests, ...visibleQuest } = quests[1].toObject();
+    assert.deepEqual(body, source === "search" ? { quests: [visibleQuest] } : { matches: [visibleQuest] });
   });
 }
 

@@ -104,7 +104,8 @@ test("endpoint returns matches for the authenticated user and rejects unauthenti
 
   await getPartialMatchesController({ userId } as AuthenticatedRequest, res);
   assert.equal(statusCode, 200);
-  assert.deepEqual(responseBody, { matches: [match] });
+  const { joinRequests, ...visibleQuest } = match.toObject();
+  assert.deepEqual(responseBody, { matches: [visibleQuest] });
   assert.equal(user.mock.calls[0]?.arguments[0], userId);
 
   await getPartialMatchesController({} as AuthenticatedRequest, res);
