@@ -15,7 +15,8 @@ export interface Quest {
   startTime: number;     // minutes after midnight (780 = 1:00 PM)
   endTime: number;
   members: string[];
-  joinRequests: string[];
+  // Only sent to the quest's author (hidden from everyone else).
+  joinRequests?: string[];
   maxMember: number;
   status: 'open' | 'closed';
 }

@@ -74,7 +74,7 @@ export default function FindQuestsPage() {
         </button>
       );
     }
-    if (quest.joinRequests.includes(userId)) {
+    if ((quest.joinRequests ?? []).includes(userId)) {
       return <button type="button" className="quest-join-button joined" disabled>Requested ✓</button>;
     }
     const full = quest.status !== "open" || quest.members.length >= quest.maxMember;

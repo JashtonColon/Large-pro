@@ -37,13 +37,13 @@ export default function MyAppointmentsPage() {
           (quest) =>
             quest.author === userId ||
             quest.members.includes(userId) ||
-            quest.joinRequests.includes(userId)
+            (quest.joinRequests ?? []).includes(userId)
         );
         setQuests(mine);
 
         const pending: Record<string, JoinRequest[]> = {};
         for (const quest of mine) {
-          if (quest.author === userId && quest.joinRequests.length > 0) {
+          if (quest.author === userId && (quest.joinRequests ?? []).length > 0) {
             pending[quest._id] = await getJoinRequests(quest._id);
           }
         }
@@ -194,7 +194,7 @@ export default function MyAppointmentsPage() {
                       </button>
                     </div>
                   </>
-                ) : quest.joinRequests.includes(userId) ? (
+                ) : (quest.joinRequests ?? []).includes(userId) ? (
                   <button type="button" disabled>
                     Request pending…
                   </button>
