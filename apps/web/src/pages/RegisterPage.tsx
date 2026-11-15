@@ -18,7 +18,13 @@ export default function RegisterPage() {
       return;
     }
 
-    navigate("/verify-email", { state: { email } });
+    navigate("/profile-setup", {
+      state: {
+        firstName,
+        lastName,
+        email,
+      },
+    });
   }
 
   return (

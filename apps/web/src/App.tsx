@@ -11,6 +11,7 @@ import FindQuestsPage from "./pages/FindQuestsPage";
 import CreateQuestPage from "./pages/CreateQuestPage";
 import MyAppointmentsPage from "./pages/MyAppointmentsPage";
 import PasswordResetPage from "./pages/PasswordResetPage";
+import ProfileSetupPage from "./pages/ProfileSetupPage";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-email" element={<EmailVerificationPage />} />
+        <Route path="/profile-setup" element={<ProfileSetupPage />} />
 
         {/* Main Application */}
 
