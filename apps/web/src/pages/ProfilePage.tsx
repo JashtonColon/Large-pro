@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardNavbar from "../components/DashboardNavbar";
+import { getProfile } from "../lib/profileApi";
 
 interface User {
   firstName?: string;
@@ -22,10 +23,19 @@ export default function ProfilePage() {
     }
   });
 
+  // Partner preference isn't stored on the server yet, so it stays in this browser
   const [genderPreference, setGenderPreference] = useState(
-    user.genderPreference || "No Preference"
+    localStorage.getItem("genderPreference") || user.genderPreference || "No Preference"
   );
   const [saved, setSaved] = useState(false);
+
+  // Major comes from the student's profile on the server
+  const [major, setMajor] = useState("");
+  useEffect(() => {
+    getProfile()
+      .then((profile) => setMajor(profile?.major ?? ""))
+      .catch(() => setMajor(""));
+  }, []);
 
   // Determine the name and email to display
   const fullName =
@@ -39,6 +49,7 @@ export default function ProfilePage() {
   const handleSave = () => {
     const updatedUser = { ...user, genderPreference };
     localStorage.setItem("user", JSON.stringify(updatedUser));
+    localStorage.setItem("genderPreference", genderPreference);
     setUser(updatedUser);
     setSaved(true);
   };
@@ -62,7 +73,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h2>{fullName}</h2>
-                <p>UCF Student</p>
+                <p>{major ? `${major} · UCF Student` : "UCF Student"}</p>
               </div>
             </div>
 

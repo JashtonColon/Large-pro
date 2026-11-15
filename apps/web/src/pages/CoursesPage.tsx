@@ -1,5 +1,21 @@
 import { useEffect, useState } from "react";
 import DashboardNavbar from "../components/DashboardNavbar";
+import { errorMessage } from "../lib/authApi";
+import { getProfile, updateProfile } from "../lib/profileApi";
+
+// The server stores only course codes (used for matching students).
+// Course names and terms are extra details kept in this browser.
+const DETAILS_KEY = "courseDetails";
+
+function loadDetails(): Record<string, { courseName: string; term: string }> {
+  try {
+    return JSON.parse(localStorage.getItem(DETAILS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+const normalize = (code: string) => code.replace(/\s+/g, "").toUpperCase();
 
 interface Course {
   id: string;
@@ -15,23 +31,47 @@ const emptyCourse = {
 };
 
 export default function CoursesPage() {
-  // Load previously saved courses from localStorage
-  const [courses, setCourses] = useState<Course[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("courses") || "[]");
-    } catch {
-      return [];
-    }
-  });
-
+  const [courses, setCourses] = useState<Course[]>([]);
   const [formData, setFormData] = useState(emptyCourse);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  // Save courses whenever the list changes
+  // Load the saved courses from the server when the page opens
   useEffect(() => {
-    localStorage.setItem("courses", JSON.stringify(courses));
-  }, [courses]);
+    getProfile()
+      .then((profile) => {
+        const details = loadDetails();
+        setCourses(
+          (profile?.courses ?? []).map((code) => ({
+            id: code,
+            courseCode: code,
+            courseName: details[code]?.courseName ?? "",
+            term: details[code]?.term ?? "",
+          }))
+        );
+      })
+      .catch((error) => setMessage(errorMessage(error)));
+  }, []);
+
+  // Save a new course list to the server; only update the screen if it worked
+  async function persist(next: Course[], successMessage: string): Promise<boolean> {
+    try {
+      await updateProfile({ courses: next.map((course) => normalize(course.courseCode)) });
+
+      const details = loadDetails();
+      for (const course of next) {
+        details[normalize(course.courseCode)] = { courseName: course.courseName, term: course.term };
+      }
+      localStorage.setItem(DETAILS_KEY, JSON.stringify(details));
+
+      setCourses(next);
+      setMessage(successMessage);
+      return true;
+    } catch (error) {
+      setMessage(errorMessage(error)); // e.g. "Provide courses as an array of nonempty course codes."
+      return false;
+    }
+  }
 
   // Update form fields
   const handleChange = (
@@ -46,10 +86,10 @@ export default function CoursesPage() {
   };
 
   // Add a new course or update an existing one
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const courseCode = formData.courseCode.trim().toUpperCase();
+    const courseCode = normalize(formData.courseCode);
     const courseName = formData.courseName.trim();
     const term = formData.term.trim();
 
@@ -58,50 +98,31 @@ export default function CoursesPage() {
       return;
     }
 
-    // Prevent duplicate course codes for the same term
+    // Prevent the same course twice (the server stores each code once)
     const duplicate = courses.some(
-      (course) =>
-        course.courseCode.toUpperCase() === courseCode &&
-        course.term.toLowerCase() === term.toLowerCase() &&
-        course.id !== editingId
+      (course) => normalize(course.courseCode) === courseCode && course.id !== editingId
     );
 
     if (duplicate) {
-      setMessage("You have already added this course for that term.");
+      setMessage("You have already added this course.");
       return;
     }
 
-    if (editingId) {
-      // Update an existing course
-      setCourses((previous) =>
-        previous.map((course) =>
-          course.id === editingId
-            ? {
-                ...course,
-                courseCode,
-                courseName,
-                term,
-              }
-            : course
+    const next = editingId
+      ? courses.map((course) =>
+          course.id === editingId ? { id: courseCode, courseCode, courseName, term } : course
         )
-      );
+      : [...courses, { id: courseCode, courseCode, courseName, term }];
 
-      setMessage("Course updated successfully!");
-    } else {
-      // Add a new course
-      const newCourse: Course = {
-        id: crypto.randomUUID(),
-        courseCode,
-        courseName,
-        term,
-      };
+    const ok = await persist(
+      next,
+      editingId ? "Course updated successfully!" : "Course added successfully!"
+    );
 
-      setCourses((previous) => [...previous, newCourse]);
-      setMessage("Course added successfully!");
+    if (ok) {
+      setFormData(emptyCourse);
+      setEditingId(null);
     }
-
-    setFormData(emptyCourse);
-    setEditingId(null);
   };
 
   // Load a course into the form for editing
@@ -122,16 +143,16 @@ export default function CoursesPage() {
   };
 
   // Delete a course
-  const handleDelete = (courseId: string) => {
-    setCourses((previous) =>
-      previous.filter((course) => course.id !== courseId)
+  const handleDelete = async (courseId: string) => {
+    const ok = await persist(
+      courses.filter((course) => course.id !== courseId),
+      "Course removed."
     );
 
-    if (editingId === courseId) {
-      handleCancel();
+    if (ok && editingId === courseId) {
+      setFormData(emptyCourse);
+      setEditingId(null);
     }
-
-    setMessage("Course removed.");
   };
 
   // Reset the form
