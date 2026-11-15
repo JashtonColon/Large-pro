@@ -120,3 +120,19 @@ for (const viewerId of [authorId, memberId]) {
     else assert.equal("requests" in result.body, false);
   });
 }
+
+test("non-authors only learn whether they themselves requested to join", async t => {
+  const requested = makeQuest({ author: new mongoose.Types.ObjectId(), joinRequests: [applicantId, memberId] });
+  const notRequested = makeQuest({ author: new mongoose.Types.ObjectId(), joinRequests: [applicantId] });
+  const own = makeQuest();
+  t.mock.method(Quest, "find", () => ({ select: async () => [], sort: () => ({ limit: async () => [requested, notRequested, own] }) }));
+  const { res, result } = captureResponse();
+
+  await searchQuestsController({ userId: memberId, query: {} } as AuthenticatedRequest, res);
+  const quests = result.body.quests as Record<string, unknown>[];
+  assert.equal(result.status, 200);
+  assert.equal(quests[0].requestedByMe, true);
+  assert.equal(quests[1].requestedByMe, false);
+  assert.equal("joinRequests" in quests[0], false);
+  assert.equal("joinRequests" in quests[1], false);
+});

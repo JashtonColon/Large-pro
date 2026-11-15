@@ -24,10 +24,14 @@ import { timeToMinutes } from "../utils/timeUtils.js";
 import type { IQuest } from "../models/Quest.js";
 import { getQuestStatus } from "../utils/questStatus.js";
 
+// Only the author sees who asked to join. Everyone else gets a single
+// requestedByMe flag so the apps can show "Requested" on their own request.
 function toQuestResponse(quest: IQuest, viewerId: string) {
   const { joinRequests, ...fields } = quest.toObject();
   fields.status = getQuestStatus(quest, quest.members.length);
-  return quest.author.toString() === viewerId ? { ...fields, joinRequests } : fields;
+  if (quest.author.toString() === viewerId) return { ...fields, joinRequests };
+  const requestedByMe = quest.joinRequests.some(id => id.toString() === viewerId);
+  return { ...fields, requestedByMe };
 }
 
 function getQuestRequest(req: AuthenticatedRequest) {
