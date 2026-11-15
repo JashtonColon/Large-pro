@@ -16,7 +16,7 @@ import {
 
 const router = Router();
 
-// Optional subject and title query parameters; return at most 30 quests.
+// Search by subject/title. Both list endpoints accept course/startTime/endTime filters.
 router.get("/search", authMiddleware, searchQuestsController);
 
 // Match the authenticated user's courses and weekly availability.

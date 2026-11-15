@@ -74,7 +74,52 @@ async function findQuest(questId: string) {
   return quest;
 }
 
-export async function searchQuests(subject: unknown = "", title: unknown = "") {
+export interface QuestFilterInput {
+  course?: unknown;
+  startTime?: unknown;
+  endTime?: unknown;
+}
+
+function parseQuestFilters(input: QuestFilterInput) {
+  const filters: { course?: string; startTime?: number; endTime?: number } = {};
+  for (const field of ["course", "startTime", "endTime"] as const) {
+    const value = input[field];
+    if (value === undefined) continue;
+    if (typeof value === "string" && !value.trim()) continue;
+
+    if (field === "course") {
+      if (typeof value !== "string") throw new QuestError(400, "course must be a string.");
+      filters.course = normalizeCourse(value);
+    } else {
+      // GET query values arrive as strings; services can also receive numbers.
+      const minutes = typeof value === "number" || typeof value === "string" ? Number(value) : NaN;
+      if (!Number.isInteger(minutes) || minutes < 0 || minutes > 1440) {
+        throw new QuestError(400, `${field} must be a whole number of minutes from 0 to 1440.`);
+      }
+      filters[field] = minutes;
+    }
+  }
+  if (filters.startTime !== undefined && filters.endTime !== undefined &&
+      filters.endTime <= filters.startTime) {
+    throw new QuestError(400, "End time must be after start time.");
+  }
+  return filters;
+}
+
+function filterQuestResults(quests: IQuest[], filters: ReturnType<typeof parseQuestFilters>) {
+  return quests.filter(quest =>
+    (!filters.course || normalizeCourse(quest.subject) === filters.course) &&
+    (filters.startTime === undefined || quest.startTime >= filters.startTime) &&
+    (filters.endTime === undefined || quest.endTime <= filters.endTime)
+  );
+}
+
+export async function searchQuests(
+  subject: unknown = "",
+  title: unknown = "",
+  filterInput: QuestFilterInput = {}
+) {
+  const resultFilters = parseQuestFilters(filterInput);
   const filters: Record<string, RegExp> = {};
   for (const [field, value] of [["subject", subject], ["title", title]] as const) {
     if (typeof value !== "string") {
@@ -88,10 +133,12 @@ export async function searchQuests(subject: unknown = "", title: unknown = "") {
     filters[field] = new RegExp(field === "subject" ? `^${escaped}$` : escaped, "i");
   }
 
-  return Quest.find(filters).sort({ day: 1, startTime: 1, _id: 1 }).limit(30);
+  const quests = await Quest.find(filters).sort({ day: 1, startTime: 1, _id: 1 }).limit(30);
+  return filterQuestResults(quests, resultFilters);
 }
 
-export async function getPartialMatches(userId: string) {
+export async function getPartialMatches(userId: string, filterInput: QuestFilterInput = {}) {
+  const resultFilters = parseQuestFilters(filterInput);
   const user = await User.findById(userId);
   if (!user) throw new QuestError(404, "User not found.");
 
@@ -121,7 +168,7 @@ export async function getPartialMatches(userId: string) {
     if (fitsAvailability) matches.push(quest);
     if (matches.length === 30) break;
   }
-  return matches;
+  return filterQuestResults(matches, resultFilters);
 }
 
 function requireAuthor(quest: IQuest, userId: string) {
