@@ -1,19 +1,21 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { useCastleNavigate } from "./theme/Transitions";
 
 export default function DashboardNavbar() {
   const navigate = useNavigate();
+  const go = useCastleNavigate();
 
   function handleLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate("/login");
+    go("/login", "doors"); // the castle doors close, then open on the login page
   }
 
   return (
-    <header className="relative overflow-hidden bg-[#55c9e8] px-5 py-4 sm:px-8">
+    <header className="castle-navbar relative overflow-hidden bg-[#55c9e8] px-5 py-4 sm:px-8">
       {/* Decorative clouds */}
-      <div className="absolute -top-8 left-[42%] h-20 w-32 rounded-full bg-white/80 blur-sm" />
-      <div className="absolute -top-10 right-[15%] h-24 w-36 rounded-full bg-white/80 blur-sm" />
+      <div className="navbar-cloud absolute -top-8 left-[42%] h-20 w-32 rounded-full bg-white/80 blur-sm" />
+      <div className="navbar-cloud absolute -top-10 right-[15%] h-24 w-36 rounded-full bg-white/80 blur-sm" />
 
       <div className="relative z-10 flex items-center justify-between">
         {/* Logo */}
@@ -41,6 +43,10 @@ export default function DashboardNavbar() {
 
           <NavLink to="/profile">
             My Profile
+          </NavLink>
+
+          <NavLink to="/" end>
+            About
           </NavLink>
 
           

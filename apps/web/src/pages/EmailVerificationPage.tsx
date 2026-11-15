@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { verifyEmail, sendVerification, errorMessage } from "../lib/authApi";
+import { useCastleNavigate } from "../components/theme/Transitions";
 
 export default function EmailVerificationPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function EmailVerificationPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const go = useCastleNavigate();
 
   async function handleVerification(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,7 +32,7 @@ export default function EmailVerificationPage() {
     try {
       await verifyEmail(email.trim(), code);
       setMessage("Email verified! Taking you to login...");
-      setTimeout(() => navigate("/login"), 1500);
+      setTimeout(() => go("/login", "sword"), 900);
     } catch (err) {
       setError(errorMessage(err)); // e.g. "Invalid or expired verification code."
     } finally {

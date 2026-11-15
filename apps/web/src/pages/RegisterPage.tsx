@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { register, errorMessage } from "../lib/authApi";
+import AuthTabs from "../components/theme/AuthTabs";
+import { useCastleNavigate } from "../components/theme/Transitions";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -11,6 +13,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const go = useCastleNavigate();
 
   async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +44,7 @@ export default function RegisterPage() {
         email: email.trim(),
         password,
       });
-      navigate("/verify-email", { state: { email: email.trim() } });
+      go("/verify-email", "scroll", { state: { email: email.trim() } });
     } catch (error) {
       setMessage(errorMessage(error)); // e.g. "Email already registered"
     } finally {
@@ -54,6 +57,7 @@ export default function RegisterPage() {
       <section className="login-card register-card">
         <h1 className="login-brand">Knight Study Buddy</h1>
         <p className="login-subtitle">Begin your next study quest.</p>
+        <AuthTabs active="register" />
         <h2 className="login-heading">Create Your Account</h2>
 
         <form onSubmit={handleRegister}>
