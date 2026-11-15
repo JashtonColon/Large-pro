@@ -1,15 +1,33 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { login, saveSession, ApiError, errorMessage } from "../lib/authApi";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("Login submitted! Backend authentication is coming soon.");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const result = await login(email.trim(), password);
+      saveSession(result.token, result.user);
+      navigate("/quests");
+    } catch (error) {
+      // 403 = correct password, but the email hasn't been verified yet
+      if (error instanceof ApiError && error.status === 403) {
+        navigate("/verify-email", { state: { email: email.trim() } });
+        return;
+      }
+      setMessage(errorMessage(error));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -57,8 +75,8 @@ export default function LoginPage() {
             Forgot Password?
           </button>
 
-          <button className="login-submit" type="submit">
-            Log In
+          <button className="login-submit" type="submit" disabled={loading}>
+            {loading ? "Logging In..." : "Log In"}
           </button>
 
           {message && <p className="login-message" role="status">{message}</p>}

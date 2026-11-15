@@ -1,19 +1,58 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { verifyEmail, sendVerification, errorMessage } from "../lib/authApi";
 
 export default function EmailVerificationPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const email = location.state?.email || "";
+  // Email comes from the Register or Login page; if the user opened this
+  // page directly, they can type it in.
+  const emailFromState: string = location.state?.email || "";
+  const [email, setEmail] = useState(emailFromState);
 
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleVerification(event: FormEvent<HTMLFormElement>) {
+  async function handleVerification(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setMessage("");
+    setError("");
 
-    setMessage("Verification submitted! Backend verification coming soon.");
+    if (!/^\d{6}$/.test(code)) {
+      setError("Please enter the 6-digit code from your email.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await verifyEmail(email.trim(), code);
+      setMessage("Email verified! Taking you to login...");
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      setError(errorMessage(err)); // e.g. "Invalid or expired verification code."
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setMessage("");
+    setError("");
+
+    if (!email.trim()) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    try {
+      const result = await sendVerification(email.trim());
+      setMessage(result.message);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
   }
 
   return (
@@ -35,13 +74,28 @@ export default function EmailVerificationPage() {
         </h2>
 
         {/* Email Information */}
-        <p className="login-message">
-          Verification code sent to:
-        </p>
-
-        <p className="login-message">
-          <strong>{email || "Your UCF email address"}</strong>
-        </p>
+        {emailFromState ? (
+          <>
+            <p className="login-message">
+              Verification code sent to:
+            </p>
+            <p className="login-message">
+              <strong>{emailFromState}</strong>
+            </p>
+          </>
+        ) : (
+          <label className="login-field">
+            UCF Email
+            <input
+              type="email"
+              placeholder="yourname@ucf.edu"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              className="login-input"
+            />
+          </label>
+        )}
 
         {/* Verification Form */}
         <form onSubmit={handleVerification}>
@@ -66,20 +120,34 @@ export default function EmailVerificationPage() {
           <button
             type="submit"
             className="login-submit"
+            disabled={loading}
           >
-            Verify Email
+            {loading ? "Verifying..." : "Verify Email"}
           </button>
 
         </form>
 
-        {/* Response Message */}
+        {/* Response Messages */}
+        {error && (
+          <p className="login-message" role="alert">
+            {error}
+          </p>
+        )}
+
         {message && (
-          <p className="login-message">
+          <p className="login-message" role="status">
             {message}
           </p>
         )}
 
-        {/* Back to Login */}
+        {/* Resend + Back to Login */}
+        <div className="login-register">
+          Didn't get a code?{" "}
+          <button type="button" onClick={handleResend}>
+            Resend Code
+          </button>
+        </div>
+
         <div className="login-register">
           Already verified?{" "}
 

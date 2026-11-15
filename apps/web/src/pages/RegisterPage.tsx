@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { register, errorMessage } from "../lib/authApi";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -9,16 +10,43 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleRegister(event: FormEvent<HTMLFormElement>) {
+  async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setMessage("");
+
+    // Quick checks in the browser first (the server validates again)
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      setMessage("Please fill in all fields.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setMessage("Password must be at least 8 characters.");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setMessage("Passwords do not match.");
       return;
     }
 
-    navigate("/verify-email", { state: { email } });
+    setLoading(true);
+    try {
+      // The server creates the account and emails a 6-digit code
+      await register({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        password,
+      });
+      navigate("/verify-email", { state: { email: email.trim() } });
+    } catch (error) {
+      setMessage(errorMessage(error)); // e.g. "Email already registered"
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -103,8 +131,8 @@ export default function RegisterPage() {
 
           {message && <p className="login-message" role="alert">{message}</p>}
 
-          <button className="login-submit" type="submit">
-            Create Account
+          <button className="login-submit" type="submit" disabled={loading}>
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
         </form>
 

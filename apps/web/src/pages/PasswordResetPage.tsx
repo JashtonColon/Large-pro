@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { resetPassword, errorMessage } from "../lib/authApi";
 
 interface ResetPageState {
   email?: string;
@@ -9,17 +10,27 @@ interface ResetPageState {
 export default function PasswordResetPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { email = "", resetToken } = (location.state || {}) as ResetPageState;
+  const [searchParams] = useSearchParams();
+  const { email = "", resetToken: tokenFromState } = (location.state || {}) as ResetPageState;
+
+  // The reset email links to /reset-password?token=<64 hex characters>
+  const resetToken = searchParams.get("token") || tokenFromState || "";
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setMessage("");
+
+    if (!resetToken) {
+      setError("This reset link is missing its token. Please use the link from your email.");
+      return;
+    }
 
     if (password.length < 8) {
       setError("Your password must be at least 8 characters long.");
@@ -31,24 +42,28 @@ export default function PasswordResetPage() {
       return;
     }
 
-    // TODO: Send password, resetToken, and email to the password-reset API.
-    // Only navigate to login after the backend confirms the reset succeeded.
-    setMessage(
-      "Your passwords match. Connect this form to the password-reset API to finish updating your password."
-    );
+    setLoading(true);
+    try {
+      await resetPassword(resetToken, password);
+      setMessage("Password reset successfully! Taking you to login...");
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      setError(errorMessage(err)); // e.g. "Invalid or expired reset token"
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <main className="login-page">
       <div className="login-card password-reset-card">
-        <h1 className="login-brand">Study Buddy</h1>
+        <h1 className="login-brand">Knight Study Buddy</h1>
         <p className="login-subtitle">A fresh start!</p>
 
         <h2 className="login-heading">Create a New Password</h2>
 
         <p className="login-message password-reset-intro">
-          Your email has been verified. Choose a new password for your
-          Study Buddy account.
+          Choose a new password for your Knight Study Buddy account.
         </p>
 
         {email && (
@@ -104,8 +119,8 @@ export default function PasswordResetPage() {
             </p>
           )}
 
-          <button type="submit" className="login-submit">
-            Reset Password
+          <button type="submit" className="login-submit" disabled={loading}>
+            {loading ? "Resetting..." : "Reset Password"}
           </button>
         </form>
 

@@ -1,18 +1,29 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { forgotPassword, errorMessage } from "../lib/authApi";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setMessage("");
+    setLoading(true);
 
-    setMessage(
-      "If an account exists for this email, a reset link will be sent."
-    );
+    try {
+      // The server always gives the same answer whether or not the account
+      // exists, so attackers can't use this form to discover emails.
+      const result = await forgotPassword(email.trim());
+      setMessage(result.message);
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -58,8 +69,9 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             className="login-submit"
+            disabled={loading}
           >
-            Send Reset Instructions
+            {loading ? "Sending..." : "Send Reset Instructions"}
           </button>
 
         </form>
