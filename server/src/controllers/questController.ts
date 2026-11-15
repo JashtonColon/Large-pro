@@ -5,6 +5,10 @@ import {
   createQuest,
   updateQuest,
   deleteQuest,
+  requestToJoinQuest,
+  getQuestJoinRequests,
+  reviewQuestJoinRequest,
+  leaveQuest,
   QuestError,
   type CreateQuestInput,
   type UpdateQuestInput,
@@ -15,6 +19,78 @@ import type {
 } from "../middleware/authMiddleware.js";
 
 import { timeToMinutes } from "../utils/timeUtils.js";
+
+function getQuestRequest(req: AuthenticatedRequest) {
+  if (!req.userId) throw new QuestError(401, "Authentication required.");
+  if (typeof req.params.id !== "string") {
+    throw new QuestError(400, "Invalid quest ID.");
+  }
+  return { questId: req.params.id, userId: req.userId };
+}
+
+function handleQuestError(
+  res: Response,
+  error: unknown,
+  message = "Unable to update or retrieve quest membership right now."
+) {
+  if (error instanceof QuestError) {
+    res.status(error.statusCode).json({ message: error.message });
+    return;
+  }
+  console.error("Quest error:", error);
+  res.status(500).json({ message });
+}
+
+export async function joinQuestController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { questId, userId } = getQuestRequest(req);
+    const quest = await requestToJoinQuest(questId, userId);
+    res.status(201).json({ message: "Join request sent to the quest author.", quest });
+  } catch (error) {
+    handleQuestError(res, error);
+  }
+}
+
+export async function getQuestJoinRequestsController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { questId, userId } = getQuestRequest(req);
+    const requests = await getQuestJoinRequests(questId, userId);
+    res.status(200).json({ requests });
+  } catch (error) {
+    handleQuestError(res, error);
+  }
+}
+
+export async function reviewQuestJoinRequestController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { questId, userId } = getQuestRequest(req);
+    if (typeof req.params.userId !== "string") {
+      throw new QuestError(400, "Invalid quest or user ID.");
+    }
+    const decision = req.body?.decision;
+    if (decision !== "accept" && decision !== "deny") {
+      res.status(400).json({ message: "Decision must be accept or deny." });
+      return;
+    }
+    const quest = await reviewQuestJoinRequest(questId, userId, req.params.userId, decision);
+    res.status(200).json({
+      message: decision === "accept" ? "Join request accepted." : "Join request denied.",
+      quest,
+    });
+  } catch (error) {
+    handleQuestError(res, error);
+  }
+}
+
+export async function leaveQuestController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { questId, userId } = getQuestRequest(req);
+    const quest = await leaveQuest(questId, userId);
+    res.status(200).json({ message: "You have left the quest.", quest });
+  } catch (error) {
+    handleQuestError(res, error);
+  }
+}
 
 export async function createQuestController(
   req: AuthenticatedRequest,
@@ -179,18 +255,7 @@ export async function updateQuestController(
   res: Response
 ): Promise<void> {
   try {
-    const userId = req.userId;
-    const questId = req.params.id;
-
-    if (!userId) {
-      res.status(401).json({ message: "Authentication required." });
-      return;
-    }
-
-    if (typeof questId !== "string") {
-      res.status(400).json({ message: "Invalid quest ID." });
-      return;
-    }
+    const { questId, userId } = getQuestRequest(req);
 
     const body: unknown = req.body;
 
@@ -338,17 +403,7 @@ export async function updateQuestController(
       quest,
     });
   } catch (error) {
-    if (error instanceof QuestError) {
-      res.status(error.statusCode).json({
-        message: error.message,
-      });
-      return;
-    }
-
-    console.error("Failed to update quest:", error);
-    res.status(500).json({
-      message: "Unable to update quest right now.",
-    });
+    handleQuestError(res, error, "Unable to update quest right now.");
   }
 }
 
@@ -358,18 +413,7 @@ export async function deleteQuestController(
   res: Response
 ): Promise<void> {
   try {
-    const userId = req.userId;
-    const questId = req.params.id;
-
-    if (!userId) {
-      res.status(401).json({ message: "Authentication required." });
-      return;
-    }
-
-    if (typeof questId !== "string") {
-      res.status(400).json({ message: "Invalid quest ID." });
-      return;
-    }
+    const { questId, userId } = getQuestRequest(req);
 
     await deleteQuest(questId, userId);
 
@@ -377,16 +421,6 @@ export async function deleteQuestController(
       message: "Quest deleted successfully.",
     });
   } catch (error) {
-    if (error instanceof QuestError) {
-      res.status(error.statusCode).json({
-        message: error.message,
-      });
-      return;
-    }
-
-    console.error("Failed to delete quest:", error);
-    res.status(500).json({
-      message: "Unable to delete quest right now.",
-    });
+    handleQuestError(res, error, "Unable to delete quest right now.");
   }
 }

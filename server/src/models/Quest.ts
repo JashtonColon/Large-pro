@@ -11,6 +11,7 @@ export interface IQuest extends Document {
   startTime: number;
   endTime: number;
   members: mongoose.Types.ObjectId[];
+  joinRequests: mongoose.Types.ObjectId[];
   maxMember: number;
   status: "open" | "closed";
 }
@@ -35,6 +36,10 @@ const questSchema = new Schema<IQuest>({
   }],
   default: []
  },
+  joinRequests: {
+    type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    default: []
+  },
   maxMember: { type: Number, required: true, min: 1, validate: Number.isInteger },
   status: {
     type: String,
