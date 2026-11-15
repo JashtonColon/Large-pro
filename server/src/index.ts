@@ -1,19 +1,41 @@
+import "dotenv/config.js";
 import express from 'express';
 import mongoose from 'mongoose';
+import passwordResetRoutes from "./routes/passwordResetRoutes.js";
+import emailVerificationRoutes from "./routes/emailVerificationRoutes.js";
+import questRoutes from "./routes/questRoutes.js";
+import authRoutes from './routes/authRoutes.js';
+import profileRoutes from './routes/profileRoutes.js';
 
 const app = express();
-const port = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 5000);
 
 app.use(express.json());
 
+//Password Reset Routes
+app.use("/api/auth", passwordResetRoutes);
+
+//Email Verification Routes
+app.use("/api/auth", emailVerificationRoutes);
+
+// Authentication routes
+app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
+
+//Quest routes
+app.use("/api/quests", questRoutes);
+
+// Start server & connect to MongoDB
 async function start() {
-  if (process.env.MONGODB_URI) {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Connected to MongoDB');
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is not configured');
   }
 
-  app.listen(port, () => {
-    console.log(`Study Buddy API listening on port ${port}`);
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log('Connected to MongoDB');
+
+  app.listen(PORT, () => {
+    console.log(`Study Buddy API listening on port ${PORT}`);
   });
 }
 
