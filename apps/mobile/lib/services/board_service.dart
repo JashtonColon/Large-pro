@@ -13,6 +13,8 @@
 // board says "You" for your own quests and "A fellow Knight" for others.
 // Contact info is never shown.
 
+import 'package:flutter/foundation.dart';
+
 import 'api_client.dart';
 import 'auth_service.dart';
 import 'profile_service.dart';
@@ -101,6 +103,10 @@ class Bounty {
     return date.isBefore(today);
   }
 
+  /// Reads a number the server may send as a number or as text.
+  static int _int(dynamic v, [int fallback = 0]) =>
+      v is num ? v.toInt() : int.tryParse('$v') ?? fallback;
+
   factory Bounty.fromJson(Map<String, dynamic> j) {
     final code = Course.pretty(j['subject']?.toString() ?? '');
     final author = j['author'];
@@ -116,15 +122,15 @@ class Bounty {
       courseCode: code,
       courseName: ProfileService.findCourse(code)?.name ?? 'Study quest',
       title: j['title']?.toString() ?? '',
-      details: (j['description'] as String?)?.trim().isNotEmpty == true
-          ? j['description'] as String
+      details: '${j['description'] ?? ''}'.trim().isNotEmpty
+          ? '${j['description']}'
           : 'No details added.',
       posterName: authorId == me ? 'You' : 'A fellow Knight',
-      date: DateTime.parse(j['day'].toString()).toUtc(),
-      startMinute: (j['startTime'] as num).toInt(),
-      endMinute: (j['endTime'] as num).toInt(),
+      date: (DateTime.tryParse('${j['day']}') ?? DateTime.now()).toUtc(),
+      startMinute: _int(j['startTime']),
+      endMinute: _int(j['endTime']),
       where: j['location']?.toString() ?? '',
-      maxMember: (j['maxMember'] as num?)?.toInt() ?? 1,
+      maxMember: _int(j['maxMember'], 1),
       authorId: authorId,
       memberIds: ids(j['members']),
       requestIds: ids(j['joinRequests']),
@@ -163,10 +169,19 @@ class BoardService {
   /// non-authors, so the phone keeps track during the session).
   static final Set<String> requestedIds = {};
 
-  static List<Bounty> _parse(dynamic list, {bool includePast = false}) => [
-        for (final q in (list as List? ?? const []))
-          if (q is Map<String, dynamic>) Bounty.fromJson(q),
-      ].where((b) => includePast || !b.isPast).toList();
+  static List<Bounty> _parse(dynamic list, {bool includePast = false}) {
+    final out = <Bounty>[];
+    for (final q in (list is List ? list : const [])) {
+      if (q is! Map) continue;
+      try {
+        final b = Bounty.fromJson(Map<String, dynamic>.from(q));
+        if (includePast || !b.isPast) out.add(b);
+      } catch (e) {
+        debugPrint('Skipped a quest the app could not read: $e');
+      }
+    }
+    return out;
+  }
 
   /// Every quest the server returns (up to 30), upcoming ones only.
   static Future<List<Bounty>> fetchBounties({bool includePast = false}) async {

@@ -39,6 +39,9 @@ class _InvitesTabState extends State<InvitesTab> {
       _error = null;
     } on ApiException catch (e) {
       _error = e.message;
+    } catch (e) {
+      // Never leave the spinner running: show what went wrong instead.
+      _error = 'Could not load invites: $e';
     }
     if (!mounted) return;
     setState(() => _loading = false);
@@ -122,9 +125,14 @@ class _InvitesTabState extends State<InvitesTab> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: KeyedSubtree(key: ValueKey(_section), child: body),
+            child: RefreshIndicator(
+              color: Colors.black,
+              backgroundColor: AppColors.gold,
+              onRefresh: _refresh,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: KeyedSubtree(key: ValueKey(_section), child: body),
+              ),
             ),
           ),
         ],
@@ -176,18 +184,13 @@ class _InvitesTabState extends State<InvitesTab> {
   }
 
   Widget _list(List<Widget> cards) {
-    return RefreshIndicator(
-      color: Colors.black,
-      backgroundColor: AppColors.gold,
-      onRefresh: _refresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
-        children: [
-          for (final c in cards)
-            Padding(padding: const EdgeInsets.only(bottom: 12), child: c),
-        ],
-      ),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
+      children: [
+        for (final c in cards)
+          Padding(padding: const EdgeInsets.only(bottom: 12), child: c),
+      ],
     );
   }
 
@@ -477,7 +480,9 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Scrollable even when empty so pull-to-refresh still works.
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 60),
         Text(
