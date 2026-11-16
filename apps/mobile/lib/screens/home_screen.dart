@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen>
   List<Bounty>? _results; // server search results; null = no search text
   List<QuestMatch> _matches = [];
   Timer? _debounce;
+  Timer? _invitePoll; // checks for new join requests while the app is open
   bool _searching = false;
   bool _loading = true;
   String? _loadError;
@@ -65,12 +66,24 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _load();
+    // New requests to join your quests show up within ~15 seconds.
+    _invitePoll = Timer.periodic(const Duration(seconds: 15), (_) => _refreshInvites());
+  }
+
+  Future<void> _refreshInvites() async {
+    try {
+      await InviteService.refresh();
+      if (mounted) setState(() {});
+    } catch (_) {
+      // Network hiccup: try again on the next tick.
+    }
   }
 
   @override
   void dispose() {
     _doors.dispose();
     _debounce?.cancel();
+    _invitePoll?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -254,7 +267,10 @@ class _HomeScreenState extends State<HomeScreen>
       bottomNavigationBar: _KnightNavBar(
         index: _tab,
         inviteBadge: InviteService.incomingPending.length,
-        onSelected: (i) => setState(() => _tab = i),
+        onSelected: (i) {
+          setState(() => _tab = i);
+          if (i == 2) _refreshInvites(); // fresh requests when opening Invites
+        },
       ),
       floatingActionButton: _tab >= 2
           ? null

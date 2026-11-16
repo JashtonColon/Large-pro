@@ -60,7 +60,9 @@ class InviteService {
     final mine = quests.where((q) => q.isMine).toList();
     final requestLists = await Future.wait([
       for (final q in mine.where((q) => q.requestIds.isNotEmpty))
-        BoardService.joinRequests(q.id).then((list) => (q, list)),
+        BoardService.joinRequests(q.id)
+            .then((list) => (q, list))
+            .catchError((Object _) => (q, <JoinRequest>[])),
     ]);
     _received = [
       for (final (quest, requests) in requestLists)
