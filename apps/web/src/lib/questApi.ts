@@ -63,8 +63,18 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 // Server-side search: the title matches partially and case-insensitively,
 // so "exam" finds "Data Structures Exam Prep". Empty text returns all quests.
-export async function searchQuests(text: string): Promise<Quest[]> {
+export interface QuestFilters {
+  course?: string;      // exact course code, e.g. "COP4331"
+  startTime?: number;   // minutes; only quests starting at or after this
+  endTime?: number;     // minutes; only quests ending at or before this
+}
+
+export async function searchQuests(text: string, filters: QuestFilters = {}): Promise<Quest[]> {
   const params = new URLSearchParams({ title: text.trim() });
+  // The server does the filtering: GET /api/quests/search?course=COP4331&startTime=780&endTime=1020
+  if (filters.course) params.set('course', filters.course);
+  if (filters.startTime !== undefined) params.set('startTime', String(filters.startTime));
+  if (filters.endTime !== undefined) params.set('endTime', String(filters.endTime));
   const data = await request<{ quests: Quest[] }>('GET', `/api/quests/search?${params}`);
   return data.quests;
 }
