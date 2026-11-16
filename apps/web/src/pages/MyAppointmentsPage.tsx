@@ -20,7 +20,7 @@ export default function MyAppointmentsPage() {
   const navigate = useNavigate();
   const userId = currentUserId();
 
-  const [activeTab, setActiveTab] = useState<"created" | "accepted">("created");
+  const [activeTab, setActiveTab] = useState<"created" | "pending" | "accepted">("created");
   const [quests, setQuests] = useState<Quest[]>([]);
   const [requests, setRequests] = useState<Record<string, JoinRequest[]>>({});
   const [loading, setLoading] = useState(true);
@@ -59,8 +59,16 @@ export default function MyAppointmentsPage() {
   }, [userId, refreshKey]);
 
   const createdQuests = quests.filter((quest) => quest.author === userId);
-  const acceptedQuests = quests.filter((quest) => quest.author !== userId);
-  const currentQuests = activeTab === "created" ? createdQuests : acceptedQuests;
+  // Waiting for the author to answer my join request
+  const pendingQuests = quests.filter(
+    (quest) => quest.author !== userId && hasRequested(quest, userId)
+  );
+  // The author accepted me: I'm a member
+  const acceptedQuests = quests.filter(
+    (quest) => quest.author !== userId && quest.members.includes(userId)
+  );
+  const currentQuests =
+    activeTab === "created" ? createdQuests : activeTab === "pending" ? pendingQuests : acceptedQuests;
 
   // Runs an action, shows the server's message, then reloads the lists
   async function runAction(action: () => Promise<{ message: string }>) {
@@ -113,6 +121,14 @@ export default function MyAppointmentsPage() {
           </button>
 
           <button
+            className={activeTab === "pending" ? "active" : ""}
+            onClick={() => setActiveTab("pending")}
+            type="button"
+          >
+            Pending ({pendingQuests.length})
+          </button>
+
+          <button
             className={activeTab === "accepted" ? "active" : ""}
             onClick={() => setActiveTab("accepted")}
             type="button"
@@ -128,13 +144,19 @@ export default function MyAppointmentsPage() {
         ) : currentQuests.length === 0 ? (
           <div className="appointment-empty">
             <h2>
-              {activeTab === "created" ? "No Quests Created Yet" : "No Accepted Quests Yet"}
+              {activeTab === "created"
+                ? "No Quests Created Yet"
+                : activeTab === "pending"
+                  ? "No Pending Requests"
+                  : "No Accepted Quests Yet"}
             </h2>
 
             <p>
               {activeTab === "created"
                 ? "Create a quest and invite other Knights to study!"
-                : "Find a study group and join your first quest!"}
+                : activeTab === "pending"
+                  ? "Quests you ask to join wait here until the author accepts."
+                  : "Find a study group and join your first quest!"}
             </p>
 
             <button onClick={() => navigate(activeTab === "created" ? "/create-quest" : "/quests")}>
