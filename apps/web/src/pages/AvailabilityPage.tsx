@@ -1,5 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardNavbar from "../components/DashboardNavbar";
+import { errorMessage } from "../lib/authApi";
+import {
+  getProfile,
+  updateProfile,
+  timeToMinutes,
+  minutesToTimeInput,
+  DAY_NUMBERS,
+} from "../lib/profileApi";
 
 interface TimeSlot {
   id: number;
@@ -28,6 +36,29 @@ export default function AvailabilityPage() {
     useState<DaySchedule[]>(initialSchedule);
 
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load the saved weekly schedule from the server when the page opens.
+  // The server stores slots as { dayOfWeek: 0-6, startMinute, endMinute }.
+  useEffect(() => {
+    getProfile()
+      .then((profile) => {
+        if (!profile) return;
+        setSchedule(
+          initialSchedule.map((day) => ({
+            ...day,
+            slots: profile.availability
+              .filter((slot) => slot.dayOfWeek === DAY_NUMBERS[day.day])
+              .map((slot, index) => ({
+                id: slot.dayOfWeek * 1000 + index,
+                start: minutesToTimeInput(slot.startMinute),
+                end: minutesToTimeInput(slot.endMinute),
+              })),
+          }))
+        );
+      })
+      .catch((error) => alert(errorMessage(error)));
+  }, []);
 
   // Add a new time period to a day
   const addTimeSlot = (dayIndex: number) => {
@@ -128,7 +159,7 @@ export default function AvailabilityPage() {
   };
 
   // Validate and save the schedule
-  const saveSchedule = () => {
+  const saveSchedule = async () => {
     for (const day of schedule) {
       if (!day.available) continue;
 
@@ -158,10 +189,31 @@ export default function AvailabilityPage() {
       }
     }
 
-    setSaved(true);
+    // Convert to the server's format and save
+    const availability = schedule
+      .filter((day) => day.available)
+      .flatMap((day) =>
+        day.slots.map((slot) => ({
+          dayOfWeek: DAY_NUMBERS[day.day],
+          startMinute: timeToMinutes(slot.start),
+          endMinute: timeToMinutes(slot.end),
+        }))
+      );
 
-    // Frontend-only for now. We will connect this to the backend later.
-    console.log("Availability Schedule:", schedule);
+    if (availability.length === 0) {
+      alert("Add at least one time when you're available.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateProfile({ availability });
+      setSaved(true);
+    } catch (error) {
+      alert(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -178,8 +230,8 @@ export default function AvailabilityPage() {
                 to study with you.
               </p>
             </div>
-            <button onClick={saveSchedule} className="medieval-primary-button availability-top-save">
-              {saved ? "✓ Saved" : "Save Changes"}
+            <button onClick={saveSchedule} disabled={saving} className="medieval-primary-button availability-top-save">
+              {saving ? "Saving..." : saved ? "✓ Saved" : "Save Changes"}
             </button>
           </header>
 
@@ -295,8 +347,8 @@ export default function AvailabilityPage() {
 
           <footer className="availability-save-footer">
             <p>Remember to save your changes before leaving this page.</p>
-            <button onClick={saveSchedule} className="medieval-primary-button">
-              {saved ? "✓ Saved" : "Save Changes"}
+            <button onClick={saveSchedule} disabled={saving} className="medieval-primary-button">
+              {saving ? "Saving..." : saved ? "✓ Saved" : "Save Changes"}
             </button>
           </footer>
         </div>

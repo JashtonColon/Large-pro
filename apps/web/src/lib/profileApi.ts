@@ -56,6 +56,16 @@ export async function saveProfile(profile: Profile): Promise<Profile> {
   }
 }
 
+// Change only some fields, e.g. updateProfile({ courses: [...] })
+export async function updateProfile(changes: Partial<Profile>): Promise<Profile> {
+  return (await request<{ profile: Profile }>('PATCH', changes)).profile;
+}
+
+// 570 -> "09:30" (for <input type="time">)
+export function minutesToTimeInput(total: number): string {
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
 // "09:30" (from <input type="time">) -> 570
 export function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
