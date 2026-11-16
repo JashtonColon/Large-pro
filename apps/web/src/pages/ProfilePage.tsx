@@ -10,12 +10,11 @@ interface User {
   fullName?: string;
   email?: string;
   ucfEmail?: string;
-  genderPreference?: string;
 }
 
 export default function ProfilePage() {
   // Get the logged-in user's information
-  const [user, setUser] = useState<User>(() => {
+  const [user] = useState<User>(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "{}");
     } catch {
@@ -23,14 +22,9 @@ export default function ProfilePage() {
     }
   });
 
-  // Partner preference isn't stored on the server yet, so it stays in this browser
-  const [genderPreference, setGenderPreference] = useState(
-    localStorage.getItem("genderPreference") || user.genderPreference || "No Preference"
-  );
-  const [saved, setSaved] = useState(false);
-
   // Major comes from the student's profile on the server
   const [major, setMajor] = useState("");
+
   useEffect(() => {
     getProfile()
       .then((profile) => setMajor(profile?.major ?? ""))
@@ -45,15 +39,6 @@ export default function ProfilePage() {
 
   const email = user.email || user.ucfEmail || "No email available";
 
-  // Save updated preferences
-  const handleSave = () => {
-    const updatedUser = { ...user, genderPreference };
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-    localStorage.setItem("genderPreference", genderPreference);
-    setUser(updatedUser);
-    setSaved(true);
-  };
-
   return (
     <>
       <DashboardNavbar />
@@ -62,7 +47,7 @@ export default function ProfilePage() {
         <div className="profile-content">
           <header className="profile-heading">
             <h1>My Profile</h1>
-            <p>View your account information and manage your study preferences.</p>
+            <p>View your account information and manage your study information.</p>
           </header>
 
           {/* Personal Information */}
@@ -89,42 +74,16 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* Study Preferences */}
+          {/* Academic Information */}
           <section className="profile-panel">
             <div className="profile-section-heading">
-              <h2>Study Preferences</h2>
-              <p>
-                Customize your preferences to help Study Buddy find compatible
-                study partners.
-              </p>
+              <h2>Academic Information</h2>
+              <p>Your major and courses help other students find compatible study partners.</p>
             </div>
 
             <div className="profile-preference-control">
-              <label htmlFor="genderPreference">
-                Preferred Gender of Study Partners
-              </label>
-              <select
-                id="genderPreference"
-                value={genderPreference}
-                onChange={(event) => {
-                  setGenderPreference(event.target.value);
-                  setSaved(false);
-                }}
-              >
-                <option value="No Preference">No Preference</option>
-                <option value="Women">Women</option>
-                <option value="Men">Men</option>
-              </select>
-              <p>
-                This preference will be used when suggesting potential study
-                partners.
-              </p>
-            </div>
-
-            <div className="profile-save-row">
-              <button className="profile-save-button" onClick={handleSave}>
-                {saved ? "✓ Preferences Saved" : "Save Preferences"}
-              </button>
+              <label>Major</label>
+              <p>{major || "No major added yet."}</p>
             </div>
           </section>
 
@@ -133,8 +92,8 @@ export default function ProfilePage() {
             <div className="profile-section-heading">
               <h2>My Study Information</h2>
               <p>
-                Manage the information Study Buddy uses to find your study
-                partners.
+                Manage the information Study Buddy uses to help you find
+                study partners.
               </p>
             </div>
 

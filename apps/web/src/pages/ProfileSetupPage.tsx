@@ -46,10 +46,6 @@ export default function ProfileSetupPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [courseMessage, setCourseMessage] = useState("");
 
-  // Study partner preference
-  const [genderPreference, setGenderPreference] =
-    useState("No Preference");
-
   // Weekly availability
   const [schedule, setSchedule] =
     useState<DaySchedule[]>(initialSchedule);
@@ -332,8 +328,6 @@ export default function ProfileSetupPage() {
         availability,
       });
 
-      // The backend has no partner-preference field yet, so keep it in the browser
-      localStorage.setItem("genderPreference", genderPreference);
       navigate("/quests");
     } catch (error) {
       setMessage(errorMessage(error));
@@ -355,7 +349,7 @@ export default function ProfileSetupPage() {
         <div className="setup-progress">
           <div className={`setup-progress-step ${step === 1 ? "active" : "complete"}`}>
             <span>1</span>
-            <p>Courses & Preferences</p>
+            <p>Courses & Major</p>
           </div>
 
           <div className={`setup-progress-line ${step === 2 ? "complete" : ""}`} />
@@ -368,11 +362,11 @@ export default function ProfileSetupPage() {
 
         {step === 1 && (
           <div className="setup-step-content">
-            <h2 className="login-heading">Courses & Preferences</h2>
+            <h2 className="login-heading">Courses & Major</h2>
 
             <p className="profile-setup-intro">
-              Tell us what classes you're taking and what kind of
-              study partners you'd prefer.
+              Add your current courses and major to help find compatible
+              study partners.
             </p>
 
             {/* COURSES */}
@@ -481,12 +475,13 @@ export default function ProfileSetupPage() {
               </div>
             </section>
 
-            {/* GENDER PREFERENCE */}
+            {/* MAJOR */}
             <section className="profile-panel">
               <div className="profile-section-heading">
-                <h2>👥 Study Partner Preferences</h2>
+                <h2>🎓 Academic Information</h2>
                 <p>
-                  Choose your preferred gender of study partners.
+                  Add your major to help other students learn a little
+                  more about your academic background.
                 </p>
               </div>
 
@@ -499,29 +494,6 @@ export default function ProfileSetupPage() {
                   value={major}
                   onChange={(event) => setMajor(event.target.value)}
                 />
-              </div>
-
-              <div className="profile-preference-control">
-                <label htmlFor="genderPreference">
-                  Preferred Gender of Study Partners
-                </label>
-
-                <select
-                  id="genderPreference"
-                  value={genderPreference}
-                  onChange={(event) =>
-                    setGenderPreference(event.target.value)
-                  }
-                >
-                  <option value="No Preference">No Preference</option>
-                  <option value="Women">Women</option>
-                  <option value="Men">Men</option>
-                </select>
-
-                <p>
-                  This preference will help suggest compatible
-                  study partners.
-                </p>
               </div>
             </section>
 
