@@ -9,8 +9,9 @@ import {
   getJoinRequests,
   reviewJoinRequest,
   formatDay,
-  minutesToTime,
+  timeRange,
   currentUserId,
+  hasRequested,
   type Quest,
   type JoinRequest,
 } from "../lib/questApi";
@@ -37,7 +38,7 @@ export default function MyAppointmentsPage() {
           (quest) =>
             quest.author === userId ||
             quest.members.includes(userId) ||
-            (quest.joinRequests ?? []).includes(userId)
+            hasRequested(quest, userId)
         );
         setQuests(mine);
 
@@ -79,7 +80,7 @@ export default function MyAppointmentsPage() {
   }
 
   function displaySchedule(quest: Quest) {
-    return `${formatDay(quest.day)} · ${minutesToTime(quest.startTime)} – ${minutesToTime(quest.endTime)}`;
+    return `${formatDay(quest.day)} · ${timeRange(quest.startTime, quest.endTime)}`;
   }
 
   return (
@@ -120,7 +121,7 @@ export default function MyAppointmentsPage() {
           </button>
         </div>
 
-        {notice && <p className="login-message" role="status">{notice}</p>}
+        {notice && <p className="quest-notice" role="status">{notice}</p>}
 
         {loading ? (
           <div className="appointment-empty"><p>Loading your quests...</p></div>
@@ -194,9 +195,9 @@ export default function MyAppointmentsPage() {
                       </button>
                     </div>
                   </>
-                ) : (quest.joinRequests ?? []).includes(userId) ? (
-                  <button type="button" disabled>
-                    Request pending…
+                ) : hasRequested(quest, userId) ? (
+                  <button type="button" className="quest-pending-button" disabled>
+                    ⏳ Request Pending
                   </button>
                 ) : (
                   <button

@@ -1797,3 +1797,29 @@ button { cursor: pointer; }
     max-width: none;
   }
 }
+/* Feedback banner on the Quest Board and My Quests (join, accept, delete...) */
+.quest-notice {
+  max-width: 640px;
+  margin: 16px auto;
+  padding: 12px 18px;
+  border: 2px solid #c9a227;
+  border-radius: 10px;
+  background: #fff6d8;
+  color: #4a2c12;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* A join request that is waiting for the author's answer: red so it stands out */
+.quest-join-button.pending,
+.quest-pending-button,
+.quest-pending-button:disabled {
+  background: #b3261e;
+  border-color: #7a1712;
+  color: #fff;
+  font-weight: 700;
+  opacity: 1;
+  cursor: not-allowed;
+}
