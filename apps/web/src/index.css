@@ -1835,3 +1835,8 @@ button { cursor: pointer; }
 .quest-course-filter select,
 .quest-course-filter input { padding: 9px 12px; border: 2px solid var(--parchment-border); border-radius: 10px; background: #fff6d8; color: var(--brown-text); font-size: 14px; }
 .quest-course-filter input { width: 160px; }
+
+.quest-course-filter label { display: flex; align-items: center; gap: 8px; color: #fff6d8; font-weight: 700; font-size: 14px; }
+.quest-course-filter select { min-width: 180px; }
+.quest-filter-hint { color: #fff6d8; font-size: 14px; }
+.quest-filter-hint a { color: #ffd54a; text-decoration: underline; }

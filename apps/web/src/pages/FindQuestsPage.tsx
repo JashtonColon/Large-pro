@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import DashboardNavbar from "../components/DashboardNavbar";
 import { errorMessage } from "../lib/authApi";
-import { timeToMinutes } from "../lib/profileApi";
-import { COURSE_PREFIXES, isValidCourseNumber } from "../lib/courses";
+import { getProfile, timeToMinutes } from "../lib/profileApi";
 import {
   searchQuests,
   joinQuest,
@@ -20,11 +19,9 @@ export default function FindQuestsPage() {
   const userId = currentUserId();
 
   const [search, setSearch] = useState("");
-  // Course filter: pick a prefix + type a number, then press Filter
-  const [prefix, setPrefix] = useState("");
-  const [courseNumber, setCourseNumber] = useState("");
-  const [filter, setFilter] = useState("All");   // the applied course, e.g. "COP4331"
-  const [filterError, setFilterError] = useState("");
+  // Course filter: only the courses saved in the student's profile
+  const [myCourses, setMyCourses] = useState<string[] | null>(null); // null = still loading
+  const [filter, setFilter] = useState("All");   // the selected course, e.g. "COP4331"
   const [fromTime, setFromTime] = useState("");   // "13:00" from <input type="time">
   const [toTime, setToTime] = useState("");
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -33,25 +30,11 @@ export default function FindQuestsPage() {
   const [notice, setNotice] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  function applyCourseFilter() {
-    if (!prefix || !courseNumber.trim()) {
-      setFilterError("Choose a prefix and enter a course number.");
-      return;
-    }
-    if (!isValidCourseNumber(courseNumber)) {
-      setFilterError("Course number should be 4 digits, like 4331 (or 2048L).");
-      return;
-    }
-    setFilterError("");
-    setFilter(`${prefix}${courseNumber.trim()}`.toUpperCase());   // "COP" + "4331"
-  }
-
-  function clearCourseFilter() {
-    setPrefix("");
-    setCourseNumber("");
-    setFilterError("");
-    setFilter("All");
-  }
+  useEffect(() => {
+    getProfile()
+      .then((profile) => setMyCourses(profile?.courses ?? []))
+      .catch(() => setMyCourses([]));
+  }, []);
 
   const timeRangeInvalid = fromTime !== "" && toTime !== "" && toTime <= fromTime;
 
@@ -147,30 +130,26 @@ export default function FindQuestsPage() {
           </label>
 
           <div className="quest-course-filter" aria-label="Filter by course">
-            <select value={prefix} onChange={(e) => setPrefix(e.target.value)} aria-label="Course prefix">
-              <option value="">Prefix</option>
-              {COURSE_PREFIXES.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-            <input
-              value={courseNumber}
-              onChange={(e) => setCourseNumber(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") applyCourseFilter(); }}
-              placeholder="Number, e.g. 4331"
-              maxLength={5}
-              aria-label="Course number"
-            />
-            <button type="button" className="quest-filter active" onClick={applyCourseFilter}>
-              Filter
-            </button>
-            {filter !== "All" && (
-              <button type="button" className="quest-filter" onClick={clearCourseFilter}>
-                Showing {filter} ✕
-              </button>
+            <label>
+              Course
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                aria-label="Filter by one of your courses"
+                disabled={!myCourses || myCourses.length === 0}
+              >
+                <option value="All">All my courses</option>
+                {(myCourses ?? []).map((course) => (
+                  <option key={course} value={course}>{course}</option>
+                ))}
+              </select>
+            </label>
+            {myCourses && myCourses.length === 0 && (
+              <span className="quest-filter-hint">
+                Add courses in <Link to="/courses">My Profile → Courses</Link> to filter by course.
+              </span>
             )}
           </div>
-          {filterError && <p className="quest-notice" role="alert">{filterError}</p>}
 
           {/* Time window: only quests that start and end inside it (searched on the server) */}
           <div className="quest-time-filter">
