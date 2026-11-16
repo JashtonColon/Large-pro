@@ -17,6 +17,8 @@ export interface Quest {
   members: string[];
   // Only sent to the quest's author (hidden from everyone else).
   joinRequests?: string[];
+  // True when the logged-in student has a pending request to join this quest.
+  requestedByMe?: boolean;
   maxMember: number;
   status: 'open' | 'closed';
 }
@@ -127,9 +129,17 @@ export function toServerDate(isoDate: string): string {
 
 // 780 -> "1:00 PM"
 export function minutesToTime(totalMinutes: number): string {
+  // Old test quests may have times saved in another format; don't show "NaN"
+  if (typeof totalMinutes !== 'number' || !Number.isFinite(totalMinutes)) return '--:--';
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return to12Hour(`${hours}:${minutes}`);
+}
+
+// 780, 900 -> "1:00 PM–3:00 PM" (or "time not set" for old test data)
+export function timeRange(start: number, end: number): string {
+  const valid = (t: number) => typeof t === 'number' && Number.isFinite(t);
+  return valid(start) && valid(end) ? `${minutesToTime(start)}–${minutesToTime(end)}` : 'time not set';
 }
 
 // Server date -> "Tue, Nov 18" (read in UTC, because the server stores
@@ -144,6 +154,12 @@ export function formatDay(isoDate: string): string {
 }
 
 // The logged-in user's id, saved at login
+// Did the logged-in student ask to join this quest? (The server only sends
+// the full joinRequests list to the quest's author, so also check the flag.)
+export function hasRequested(quest: Quest, userId: string): boolean {
+  return Boolean(quest.requestedByMe) || (quest.joinRequests ?? []).includes(userId);
+}
+
 export function currentUserId(): string {
   try {
     return JSON.parse(localStorage.getItem('user') || '{}').id || '';

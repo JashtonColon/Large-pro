@@ -6,9 +6,10 @@ import {
   searchQuests,
   joinQuest,
   leaveQuest,
-  minutesToTime,
+  timeRange,
   formatDay,
   currentUserId,
+  hasRequested,
   type Quest,
 } from "../lib/questApi";
 
@@ -74,8 +75,8 @@ export default function FindQuestsPage() {
         </button>
       );
     }
-    if ((quest.joinRequests ?? []).includes(userId)) {
-      return <button type="button" className="quest-join-button joined" disabled>Requested ✓</button>;
+    if (hasRequested(quest, userId)) {
+      return <button type="button" className="quest-join-button pending" disabled>⏳ Request Pending</button>;
     }
     const full = quest.status !== "open" || quest.members.length >= quest.maxMember;
     return (
@@ -128,7 +129,7 @@ export default function FindQuestsPage() {
           </div>
         </section>
 
-        {notice && <p className="login-message" role="status">{notice}</p>}
+        {notice && <p className="quest-notice" role="status">{notice}</p>}
 
         <section className="quest-list" aria-live="polite">
           {loading ? (
@@ -147,7 +148,7 @@ export default function FindQuestsPage() {
               <div className="quest-details">
                 <div className="quest-detail">
                   <span>◷</span>
-                  <span>{formatDay(quest.day)}, {minutesToTime(quest.startTime)}–{minutesToTime(quest.endTime)}</span>
+                  <span>{formatDay(quest.day)}, {timeRange(quest.startTime, quest.endTime)}</span>
                 </div>
                 <div className="quest-detail"><span>♧</span><span>{quest.location}</span></div>
               </div>
