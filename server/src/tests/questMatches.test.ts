@@ -105,7 +105,8 @@ test("endpoint returns matches for the authenticated user and rejects unauthenti
 
   await getPartialMatchesController({ userId } as AuthenticatedRequest, res);
   assert.equal(statusCode, 200);
-  const { joinRequests, ...visibleQuest } = match.toObject();
+  const { joinRequests, ...fields } = match.toObject();
+  const visibleQuest = { ...fields, requestedByMe: false }; // non-authors get a flag, not the list
   assert.deepEqual(responseBody, { matches: [visibleQuest] });
   assert.equal(user.mock.calls[0]?.arguments[0], userId);
 

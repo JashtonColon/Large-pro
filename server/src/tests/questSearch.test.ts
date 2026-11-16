@@ -71,7 +71,7 @@ test("controller returns quests, validates search input, and requires authentica
   assert.equal(statusCode, 200);
   assert.deepEqual(body, { quests: results.map(quest => {
     const { joinRequests, ...fields } = quest.toObject();
-    return fields;
+    return { ...fields, requestedByMe: false }; // non-authors get a flag, not the list
   }) });
   const filters = find.mock.calls.at(-1)?.arguments[0] as unknown as Parameters<typeof matchesDiscoveryQuery>[1];
   assert.equal(matchesDiscoveryQuery(quests[0]!, filters), true);

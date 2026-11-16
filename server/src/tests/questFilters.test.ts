@@ -136,7 +136,8 @@ for (const source of ["search", "matches"] as const) {
     const controller = source === "search" ? searchQuestsController : getPartialMatchesController;
     await controller(req, res);
     assert.equal(statusCode, 200);
-    const { joinRequests, ...visibleQuest } = quests[1].toObject();
+    const { joinRequests, ...fields } = quests[1].toObject();
+    const visibleQuest = { ...fields, requestedByMe: false }; // non-authors get a flag, not the list
     assert.deepEqual(body, source === "search" ? { quests: [visibleQuest] } : { matches: [visibleQuest] });
   });
 }
