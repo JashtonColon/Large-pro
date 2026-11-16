@@ -1823,3 +1823,15 @@ button { cursor: pointer; }
   opacity: 1;
   cursor: not-allowed;
 }
+
+/* Time window filter on the Quest Board */
+.quest-time-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; color: #fff6d8; font-weight: 700; font-size: 14px; }
+.quest-time-filter label { display: flex; align-items: center; gap: 8px; }
+.quest-time-filter input { padding: 7px 10px; border: 2px solid var(--parchment-border); border-radius: 10px; background: #fff6d8; color: var(--brown-text); font-size: 14px; }
+.quest-time-filter button { padding: 7px 14px; border: 2px solid var(--parchment-border); border-radius: 20px; background: #f3e3c2; color: var(--brown-text); font-weight: 700; cursor: pointer; }
+
+/* Course filter: prefix dropdown + course number */
+.quest-course-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.quest-course-filter select,
+.quest-course-filter input { padding: 9px 12px; border: 2px solid var(--parchment-border); border-radius: 10px; background: #fff6d8; color: var(--brown-text); font-size: 14px; }
+.quest-course-filter input { width: 160px; }

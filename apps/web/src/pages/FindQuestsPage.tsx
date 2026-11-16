@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardNavbar from "../components/DashboardNavbar";
 import { errorMessage } from "../lib/authApi";
+import { timeToMinutes } from "../lib/profileApi";
+import { COURSE_PREFIXES, isValidCourseNumber } from "../lib/courses";
 import {
   searchQuests,
   joinQuest,
@@ -13,29 +15,62 @@ import {
   type Quest,
 } from "../lib/questApi";
 
-const filters = ["All", "COP", "CDA", "CHM", "COT"];
-
 export default function FindQuestsPage() {
   const navigate = useNavigate();
   const userId = currentUserId();
 
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("All");
+  // Course filter: pick a prefix + type a number, then press Filter
+  const [prefix, setPrefix] = useState("");
+  const [courseNumber, setCourseNumber] = useState("");
+  const [filter, setFilter] = useState("All");   // the applied course, e.g. "COP4331"
+  const [filterError, setFilterError] = useState("");
+  const [fromTime, setFromTime] = useState("");   // "13:00" from <input type="time">
+  const [toTime, setToTime] = useState("");
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Ask the SERVER for matching quests whenever the search text changes.
+  function applyCourseFilter() {
+    if (!prefix || !courseNumber.trim()) {
+      setFilterError("Choose a prefix and enter a course number.");
+      return;
+    }
+    if (!isValidCourseNumber(courseNumber)) {
+      setFilterError("Course number should be 4 digits, like 4331 (or 2048L).");
+      return;
+    }
+    setFilterError("");
+    setFilter(`${prefix}${courseNumber.trim()}`.toUpperCase());   // "COP" + "4331"
+  }
+
+  function clearCourseFilter() {
+    setPrefix("");
+    setCourseNumber("");
+    setFilterError("");
+    setFilter("All");
+  }
+
+  const timeRangeInvalid = fromTime !== "" && toTime !== "" && toTime <= fromTime;
+
+  // Ask the SERVER for matching quests whenever the search text or filters change.
   // The 300 ms delay ("debounce") waits until the user pauses typing,
   // so we don't send a request for every single key press.
   useEffect(() => {
     const timer = setTimeout(async () => {
+      if (timeRangeInvalid) return; // wait until the range makes sense
       setLoading(true);
       setError("");
       try {
-        setQuests(await searchQuests(search));
+        setQuests(
+          await searchQuests(search, {
+            course: filter === "All" ? undefined : filter,
+            startTime: fromTime ? timeToMinutes(fromTime) : undefined,
+            endTime: toTime ? timeToMinutes(toTime) : undefined,
+          })
+        );
       } catch (err) {
         setError(errorMessage(err));
       } finally {
@@ -44,12 +79,9 @@ export default function FindQuestsPage() {
     }, 300);
 
     return () => clearTimeout(timer); // cancel if the user types again
-  }, [search, refreshKey]);
+  }, [search, filter, fromTime, toTime, timeRangeInvalid, refreshKey]);
 
-  // Course-prefix buttons narrow the server's results in the browser
-  const visibleQuests = quests.filter(
-    (quest) => filter === "All" || quest.subject.toUpperCase().startsWith(filter)
-  );
+  const visibleQuests = quests;
 
   // Runs a join/leave/delete action, shows its message, then reloads the list
   async function runAction(action: () => Promise<{ message: string }>) {
@@ -114,19 +146,51 @@ export default function FindQuestsPage() {
             />
           </label>
 
-          <div className="quest-filters" aria-label="Filter by course prefix">
-            {filters.map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={`quest-filter ${filter === item ? "active" : ""}`}
-                onClick={() => setFilter(item)}
-                aria-pressed={filter === item}
-              >
-                {item}
+          <div className="quest-course-filter" aria-label="Filter by course">
+            <select value={prefix} onChange={(e) => setPrefix(e.target.value)} aria-label="Course prefix">
+              <option value="">Prefix</option>
+              {COURSE_PREFIXES.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+            <input
+              value={courseNumber}
+              onChange={(e) => setCourseNumber(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyCourseFilter(); }}
+              placeholder="Number, e.g. 4331"
+              maxLength={5}
+              aria-label="Course number"
+            />
+            <button type="button" className="quest-filter active" onClick={applyCourseFilter}>
+              Filter
+            </button>
+            {filter !== "All" && (
+              <button type="button" className="quest-filter" onClick={clearCourseFilter}>
+                Showing {filter} ✕
               </button>
-            ))}
+            )}
           </div>
+          {filterError && <p className="quest-notice" role="alert">{filterError}</p>}
+
+          {/* Time window: only quests that start and end inside it (searched on the server) */}
+          <div className="quest-time-filter">
+            <label>
+              From
+              <input type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} />
+            </label>
+            <label>
+              To
+              <input type="time" value={toTime} onChange={(e) => setToTime(e.target.value)} />
+            </label>
+            {(fromTime || toTime) && (
+              <button type="button" onClick={() => { setFromTime(""); setToTime(""); }}>
+                Clear times
+              </button>
+            )}
+          </div>
+          {timeRangeInvalid && (
+            <p className="quest-notice" role="alert">"To" must be later than "From".</p>
+          )}
         </section>
 
         {notice && <p className="quest-notice" role="status">{notice}</p>}
@@ -162,7 +226,7 @@ export default function FindQuestsPage() {
           )) : (
             <div className="no-quests">
               <h2>No Quests Found</h2>
-              <p>Try another search, or post the first quest!</p>
+              <p>Try another search or filter, or post the first quest!</p>
             </div>
           )}
         </section>
